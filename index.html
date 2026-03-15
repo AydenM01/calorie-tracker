@@ -469,7 +469,7 @@
     <div class="section-header">
       <h2>Food</h2>
       <div style="display:flex;gap:6px;">
-        <button class="btn-add" onclick="openScanner()" style="background:var(--text);">Scan</button>
+        <button class="btn-add" onclick="try{openScanner()}catch(e){alert('Error: '+e.message)}" style="background:var(--text);">Scan</button>
         <button class="btn-add" onclick="openFoodModal()">+ Add</button>
       </div>
     </div>
@@ -727,6 +727,11 @@
     </div>
     <video id="scanner-video" style="width:100%;border-radius:10px;margin-bottom:12px;background:#000;" muted playsinline></video>
     <div id="scanner-status" style="text-align:center;font-size:14px;color:var(--text-light);padding:8px 0;"></div>
+    <div id="scanner-manual" style="display:none;margin-bottom:12px;">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--text-light);margin-bottom:6px;">Barcode Number</label>
+      <input type="text" id="scanner-barcode-input" placeholder="e.g. 049000042566" inputmode="numeric" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:16px;margin-bottom:8px;outline:none;font-family:inherit;">
+      <button class="btn-add" style="width:100%;" onclick="manualBarcodeLookup()">Look Up</button>
+    </div>
     <div id="scanner-result" style="display:none;">
       <div class="entry-item" style="margin-bottom:12px;" id="scanner-product-info"></div>
       <label>Servings</label>
@@ -1364,20 +1369,26 @@ let scannerInterval = null;
 let scannedProduct = null;
 
 function openScanner() {
-  document.getElementById('scanner-result').style.display = 'none';
-  document.getElementById('scanner-status').style.display = 'block';
-  document.getElementById('scanner-modal').classList.add('open');
-  scannedProduct = null;
+  try {
+    document.getElementById('scanner-result').style.display = 'none';
+    document.getElementById('scanner-status').style.display = 'block';
+    document.getElementById('scanner-modal').classList.add('open');
+    scannedProduct = null;
 
-  const statusEl = document.getElementById('scanner-status');
+    const statusEl = document.getElementById('scanner-status');
 
-  if (!('BarcodeDetector' in window)) {
-    statusEl.textContent = 'Barcode scanning is not supported in this browser. Try Chrome or Safari 17.2+.';
-    return;
+    if (!('BarcodeDetector' in window)) {
+      statusEl.textContent = 'Barcode scanning not supported in this browser. Enter barcode manually below.';
+      document.getElementById('scanner-manual').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('scanner-manual').style.display = 'none';
+    statusEl.textContent = 'Starting camera...';
+    startNativeScanner(statusEl);
+  } catch (e) {
+    alert('Scanner error: ' + e.message);
   }
-
-  statusEl.textContent = 'Starting camera...';
-  startNativeScanner(statusEl);
 }
 
 async function startNativeScanner(statusEl) {
@@ -1522,6 +1533,14 @@ async function addScannedFood() {
     await loadDayData(currentDate);
     render();
   } catch (e) { console.error('Failed to add scanned food', e); }
+}
+
+function manualBarcodeLookup() {
+  const barcode = document.getElementById('scanner-barcode-input').value.trim();
+  if (!barcode) return;
+  document.getElementById('scanner-status').textContent = 'Looking up ' + barcode + '...';
+  document.getElementById('scanner-status').style.display = 'block';
+  onBarcodeScanned(barcode);
 }
 
 // ---- Enter key support in modals ----
