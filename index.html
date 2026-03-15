@@ -469,7 +469,7 @@
     <div class="section-header">
       <h2>Food</h2>
       <div style="display:flex;gap:6px;">
-        <button class="btn-add" onclick="try{openScanner()}catch(e){alert('Error: '+e.message)}" style="background:var(--text);">Scan</button>
+        <button class="btn-add" onclick="alert(typeof openScanner)" style="background:var(--text);">Scan</button>
         <button class="btn-add" onclick="openFoodModal()">+ Add</button>
       </div>
     </div>
