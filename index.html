@@ -469,7 +469,7 @@
     <div class="section-header">
       <h2>Food</h2>
       <div style="display:flex;gap:6px;">
-        <button class="btn-add" onclick="alert(typeof openScanner)" style="background:var(--text);">Scan</button>
+        <button class="btn-add" onclick="openScanner()" style="background:var(--text);">Scan</button>
         <button class="btn-add" onclick="openFoodModal()">+ Add</button>
       </div>
     </div>
@@ -1369,26 +1369,24 @@ let scannerInterval = null;
 let scannedProduct = null;
 
 function openScanner() {
-  try {
-    document.getElementById('scanner-result').style.display = 'none';
-    document.getElementById('scanner-status').style.display = 'block';
-    document.getElementById('scanner-modal').classList.add('open');
-    scannedProduct = null;
+  const modal = document.getElementById('scanner-modal');
+  const statusEl = document.getElementById('scanner-status');
+  const resultEl = document.getElementById('scanner-result');
+  const manualEl = document.getElementById('scanner-manual');
 
-    const statusEl = document.getElementById('scanner-status');
+  resultEl.style.display = 'none';
+  statusEl.style.display = 'block';
+  manualEl.style.display = 'block';
+  scannedProduct = null;
+  modal.classList.add('open');
 
-    if (!('BarcodeDetector' in window)) {
-      statusEl.textContent = 'Barcode scanning not supported in this browser. Enter barcode manually below.';
-      document.getElementById('scanner-manual').style.display = 'block';
-      return;
-    }
-
-    document.getElementById('scanner-manual').style.display = 'none';
-    statusEl.textContent = 'Starting camera...';
-    startNativeScanner(statusEl);
-  } catch (e) {
-    alert('Scanner error: ' + e.message);
+  if (!('BarcodeDetector' in window)) {
+    statusEl.textContent = 'Camera scanning not available in this browser. Enter barcode number manually.';
+    return;
   }
+
+  statusEl.textContent = 'Starting camera...';
+  startNativeScanner(statusEl);
 }
 
 async function startNativeScanner(statusEl) {
