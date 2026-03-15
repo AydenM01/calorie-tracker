@@ -596,7 +596,7 @@ function userId() { return pb.authStore.record.id; }
 
 async function loadSettings() {
   try {
-    const records = await pb.collection('user_settings').getList(1, 1, { filter: `user="${userId()}"` });
+    const records = await pb.collection('user_settings').getList(1, 1, { filter: `user = "${userId()}"` });
     if (records.items.length > 0) {
       const r = records.items[0];
       settingsRecordId = r.id;
@@ -632,18 +632,19 @@ async function loadDayData(date) {
   try {
     const [foodRes, waterRes] = await Promise.all([
       pb.collection('food_entries').getList(1, 200, {
-        filter: `user="${userId()}" && date="${date}"`,
+        filter: `user = "${userId()}" && date = "${date}"`,
         sort: 'created',
       }),
       pb.collection('water_entries').getList(1, 200, {
-        filter: `user="${userId()}" && date="${date}"`,
+        filter: `user = "${userId()}" && date = "${date}"`,
         sort: 'created',
       }),
     ]);
+    console.log('Loaded food:', foodRes.items.length, 'water:', waterRes.items.length);
     foodCache[date] = foodRes.items;
     waterCache[date] = waterRes.items;
   } catch (e) {
-    console.error('Failed to load day data', e);
+    console.error('Failed to load day data', e, JSON.stringify(e.response || {}));
     if (!foodCache[date]) foodCache[date] = [];
     if (!waterCache[date]) waterCache[date] = [];
   }
@@ -860,11 +861,11 @@ async function loadHistory() {
   try {
     const [foodRes, waterRes] = await Promise.all([
       pb.collection('food_entries').getList(1, 500, {
-        filter: `user="${userId()}" && date>="${oldest}" && date<="${newest}"`,
+        filter: `user = "${userId()}" && date >= "${oldest}" && date <= "${newest}"`,
         sort: '-date',
       }),
       pb.collection('water_entries').getList(1, 500, {
-        filter: `user="${userId()}" && date>="${oldest}" && date<="${newest}"`,
+        filter: `user = "${userId()}" && date >= "${oldest}" && date <= "${newest}"`,
         sort: '-date',
       }),
     ]);
