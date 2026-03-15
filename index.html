@@ -718,6 +718,8 @@
       <button class="save" onclick="savePreset()">Save</button>
     </div>
   </div>
+</div>
+
 <!-- ======== SCANNER MODAL ======== -->
 <div class="modal-overlay" id="scanner-modal">
   <div class="modal" style="padding-top:16px;max-height:90dvh;overflow-y:auto;">
@@ -1369,20 +1371,15 @@ let scannerInterval = null;
 let scannedProduct = null;
 
 function openScanner() {
-  alert('openScanner called');
   var modal = document.getElementById('scanner-modal');
-  alert('modal found: ' + !!modal + ', classes: ' + modal.className);
-  modal.classList.add('open');
-  alert('class after add: ' + modal.className);
-
   document.getElementById('scanner-result').style.display = 'none';
   document.getElementById('scanner-status').style.display = 'block';
-  document.getElementById('scanner-status').textContent = 'Scanner modal is open!';
   document.getElementById('scanner-manual').style.display = 'block';
   scannedProduct = null;
+  modal.classList.add('open');
 
   if (!('BarcodeDetector' in window)) {
-    document.getElementById('scanner-status').textContent = 'Camera scanning not available. Enter barcode number manually.';
+    document.getElementById('scanner-status').textContent = 'Camera scanning not available in this browser. Enter barcode number manually.';
     return;
   }
 
