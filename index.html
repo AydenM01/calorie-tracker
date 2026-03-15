@@ -539,6 +539,7 @@ async function doAuth() {
     if (authMode === 'signup') {
       await pb.collection('users').create({
         username,
+        email: username + '@placeholder.local',
         password: pass,
         passwordConfirm: pass,
         name: username,
@@ -547,7 +548,8 @@ async function doAuth() {
     await pb.collection('users').authWithPassword(username, pass);
     onLoginSuccess();
   } catch (e) {
-    errEl.textContent = e.message || 'Authentication failed.';
+    const detail = e.response?.data ? JSON.stringify(e.response.data) : (e.message || 'Authentication failed.');
+    errEl.textContent = detail;
     errEl.style.display = 'block';
   } finally {
     btn.disabled = false;
