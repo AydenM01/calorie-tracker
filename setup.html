@@ -108,7 +108,7 @@ async function runSetup() {
     }
   }
 
-  const authRule = '@request.auth.id != ""';
+  const authRule = '@request.auth.id = user';
 
   const collections = [
     {
