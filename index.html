@@ -323,6 +323,21 @@
   }
   .user-bar a { color: var(--danger); cursor: pointer; text-decoration: none; font-weight: 600; }
 
+  /* Goal banner */
+  .goal-banner {
+    background: var(--primary-light);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--primary);
+    font-weight: 500;
+  }
+  .goal-banner .banner-title { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+  .goal-banner .banner-sub { font-size: 12px; color: var(--text-light); font-weight: 400; }
+  .goal-banner.reached { background: #f0f7e8; color: #4a7c2e; }
+
   /* Calculator */
   .calc-q { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
   .calc-sub { font-size: 13px; color: var(--text-light); margin-bottom: 14px; }
@@ -411,6 +426,8 @@
       <div class="progress-wrap"><div class="progress-bar"><div class="fill" id="water-bar"></div></div></div>
     </div>
   </div>
+
+  <div id="goal-banner" style="display:none;"></div>
 
   <!-- Water section -->
   <div class="section">
@@ -591,6 +608,13 @@
           <span class="calc-rec-value" id="res-water" style="color:var(--water);">--</span>
         </div>
         <div class="calc-rec-explain" id="res-water-explain"></div>
+        <div id="res-goal-date-wrap" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:none;">
+          <div class="calc-rec-row">
+            <span class="calc-rec-label">Goal Date</span>
+            <span class="calc-rec-value" id="res-goal-date" style="color:var(--text);font-size:17px;">--</span>
+          </div>
+          <div class="calc-rec-explain" id="res-goal-date-explain"></div>
+        </div>
       </div>
     </div>
 
@@ -654,7 +678,7 @@ const pb = new PocketBase(PB_URL);
 
 // ---- State ----
 let currentDate = todayStr();
-let userSettings = { cal_goal: 2000, water_goal: 64, presets: [] };
+let userSettings = { cal_goal: 2000, water_goal: 64, presets: [], goal_date: null, goal_weight: null };
 let settingsRecordId = null;
 let foodCache = {};   // date -> array of records
 let waterCache = {};  // date -> array of records
@@ -771,7 +795,15 @@ async function loadSettings() {
       settingsRecordId = r.id;
       userSettings.cal_goal = r.cal_goal || 2000;
       userSettings.water_goal = r.water_goal || 64;
-      userSettings.presets = r.presets || [];
+      const p = r.presets || {};
+      // Backward compat: old format stored presets as a plain array
+      if (Array.isArray(p)) {
+        userSettings.presets = p;
+      } else {
+        userSettings.presets = p.presets || [];
+        userSettings.goal_date = p.goal_date || null;
+        userSettings.goal_weight = p.goal_weight || null;
+      }
     }
   } catch (e) {
     console.error('Failed to load settings', e);
@@ -783,7 +815,11 @@ async function saveSettingsToServer() {
     user: userId(),
     cal_goal: userSettings.cal_goal,
     water_goal: userSettings.water_goal,
-    presets: userSettings.presets,
+    presets: {
+      presets: userSettings.presets,
+      goal_date: userSettings.goal_date || null,
+      goal_weight: userSettings.goal_weight || null,
+    },
   };
   try {
     if (settingsRecordId) {
@@ -869,6 +905,40 @@ function render() {
 
   renderPresets();
   renderPresetShortcuts();
+  renderGoalBanner();
+}
+
+// ---- Goal banner ----
+function renderGoalBanner() {
+  const banner = document.getElementById('goal-banner');
+  if (!userSettings.goal_date || currentDate !== todayStr()) {
+    banner.style.display = 'none';
+    return;
+  }
+
+  const today = new Date();
+  const goalDate = new Date(userSettings.goal_date + 'T12:00:00');
+  const diffMs = goalDate - today;
+  const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (daysLeft <= 0) {
+    banner.style.display = 'block';
+    banner.className = 'goal-banner reached';
+    banner.innerHTML = `<div class="banner-title">You've reached your goal date!</div>` +
+      `<div class="banner-sub">Goal: ${userSettings.goal_weight} lbs. Time to recalculate in the Goals tab if needed.</div>`;
+  } else {
+    const weeksLeft = Math.floor(daysLeft / 7);
+    let timeStr;
+    if (daysLeft <= 7) timeStr = `${daysLeft} day${daysLeft !== 1 ? 's' : ''}`;
+    else if (weeksLeft < 8) timeStr = `${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} and ${daysLeft % 7} day${daysLeft % 7 !== 1 ? 's' : ''}`;
+    else timeStr = `${weeksLeft} weeks`;
+
+    const goalDateFmt = goalDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    banner.style.display = 'block';
+    banner.className = 'goal-banner';
+    banner.innerHTML = `<div class="banner-title">Keep going! ${timeStr} to reach your goal.</div>` +
+      `<div class="banner-sub">Target: ${userSettings.goal_weight} lbs by ${goalDateFmt}. Stay on track!</div>`;
+  }
 }
 
 // ---- Date nav ----
@@ -1193,9 +1263,42 @@ function calcCompute() {
   const waterExplain = `Based on 0.5 oz per lb of body weight (${Math.round(weightLbs * 0.5)} oz)` +
     (waterExtra > 0 ? ` + ${waterExtra} oz for exercise.` : '.');
 
+  // Goal date calculation
+  let goalDateStr = null;
+  let weeksToGoal = null;
+  const goalDateWrap = document.getElementById('res-goal-date-wrap');
+  if (diff > 5) {
+    // Losing weight
+    const deficitClamped2 = Math.max(250, Math.min(Math.round(diff * 3.5), 1000));
+    const lbsPerWeek2 = deficitClamped2 / 500;
+    weeksToGoal = Math.ceil(diff / lbsPerWeek2);
+    const goalDate = new Date();
+    goalDate.setDate(goalDate.getDate() + weeksToGoal * 7);
+    goalDateStr = goalDate.toISOString().split('T')[0];
+    document.getElementById('res-goal-date').textContent = goalDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    document.getElementById('res-goal-date-explain').textContent = `~${weeksToGoal} weeks to lose ${Math.round(diff)} lbs at your recommended pace.`;
+    goalDateWrap.style.display = 'block';
+  } else if (diff < -5) {
+    // Gaining weight
+    const surplus2 = Math.min(Math.round(Math.abs(diff) * 3), 500);
+    const lbsPerWeekGain = surplus2 / 500;
+    weeksToGoal = Math.ceil(Math.abs(diff) / lbsPerWeekGain);
+    const goalDate = new Date();
+    goalDate.setDate(goalDate.getDate() + weeksToGoal * 7);
+    goalDateStr = goalDate.toISOString().split('T')[0];
+    document.getElementById('res-goal-date').textContent = goalDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    document.getElementById('res-goal-date-explain').textContent = `~${weeksToGoal} weeks to gain ${Math.round(Math.abs(diff))} lbs at your recommended pace.`;
+    goalDateWrap.style.display = 'block';
+  } else {
+    goalDateWrap.style.display = 'none';
+  }
+
   // Store for apply
   calcData.recCalGoal = calGoal;
   calcData.recWaterGoal = waterOz;
+  calcData.goalDate = goalDateStr;
+  calcData.goalWeightLbs = goalWeightLbs;
+  calcData.currentWeightLbs = weightLbs;
 
   // Display
   document.getElementById('res-bmi').textContent = bmi.toFixed(1);
@@ -1214,6 +1317,9 @@ function calcCompute() {
 async function applyCalcGoals() {
   userSettings.cal_goal = calcData.recCalGoal;
   userSettings.water_goal = calcData.recWaterGoal;
+  userSettings.goal_date = calcData.goalDate || null;
+  userSettings.goal_weight = calcData.goalWeightLbs || null;
+  userSettings.current_weight = calcData.currentWeightLbs || null;
   await saveSettingsToServer();
   render();
   switchTab('track');
