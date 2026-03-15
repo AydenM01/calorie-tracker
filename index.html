@@ -337,11 +337,11 @@
     text-align: center;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
-  .macro-val { display: block; font-size: 18px; font-weight: 700; }
-  .macro-label { display: block; font-size: 11px; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.3px; }
-  #macro-protein .macro-val, .macro-p { color: #e07b4c; }
-  #macro-carbs .macro-val, .macro-c { color: #d4a843; }
-  #macro-fat .macro-val, .macro-f { color: #7b8fe0; }
+  .macro-val { display: inline; font-size: 18px; font-weight: 700; }
+  .macro-goal-text { font-size: 12px; color: var(--text-light); }
+  .macro-label { display: block; font-size: 11px; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
+  .macro-prog { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 2px; }
+  .macro-prog-fill { height: 100%; border-radius: 2px; transition: width 0.3s; width: 0%; }
   .food-macros { font-size: 11px; color: var(--text-light); margin-top: 2px; }
 
   /* Goal banner */
@@ -469,9 +469,24 @@
     </div>
   </div>
   <div class="macro-bar" id="macro-bar">
-    <div class="macro-item"><span class="macro-val" id="macro-protein">0</span><span class="macro-label">Protein</span></div>
-    <div class="macro-item"><span class="macro-val" id="macro-carbs">0</span><span class="macro-label">Carbs</span></div>
-    <div class="macro-item"><span class="macro-val" id="macro-fat">0</span><span class="macro-label">Fat</span></div>
+    <div class="macro-item">
+      <span class="macro-val" id="macro-protein" style="color:#e07b4c;">0</span>
+      <span class="macro-goal-text" id="macro-protein-goal"></span>
+      <span class="macro-label">Protein</span>
+      <div class="macro-prog"><div class="macro-prog-fill" id="macro-protein-bar" style="background:#e07b4c;"></div></div>
+    </div>
+    <div class="macro-item">
+      <span class="macro-val" id="macro-carbs" style="color:#d4a843;">0</span>
+      <span class="macro-goal-text" id="macro-carbs-goal"></span>
+      <span class="macro-label">Carbs</span>
+      <div class="macro-prog"><div class="macro-prog-fill" id="macro-carbs-bar" style="background:#d4a843;"></div></div>
+    </div>
+    <div class="macro-item">
+      <span class="macro-val" id="macro-fat" style="color:#7b8fe0;">0</span>
+      <span class="macro-goal-text" id="macro-fat-goal"></span>
+      <span class="macro-label">Fat</span>
+      <div class="macro-prog"><div class="macro-prog-fill" id="macro-fat-bar" style="background:#7b8fe0;"></div></div>
+    </div>
   </div>
 
   <div id="goal-banner" style="display:none;"></div>
@@ -531,6 +546,11 @@
         <label>Water Goal (oz)</label>
         <input type="number" id="input-water-goal" inputmode="numeric">
       </div>
+    </div>
+    <div class="settings-row" style="margin-bottom:14px;">
+      <div><label>Protein Goal (g)</label><input type="number" id="input-protein-goal" inputmode="numeric" placeholder="0"></div>
+      <div><label>Carbs Goal (g)</label><input type="number" id="input-carbs-goal" inputmode="numeric" placeholder="0"></div>
+      <div><label>Fat Goal (g)</label><input type="number" id="input-fat-goal" inputmode="numeric" placeholder="0"></div>
     </div>
     <div style="margin-bottom:14px;">
       <label>Day Starts At</label>
@@ -686,6 +706,17 @@
     </div>
 
     <div class="summary-card" style="margin-bottom:12px;">
+      <h3 class="calc-q">Suggested Macros</h3>
+      <p class="calc-sub">Based on your selected calorie target</p>
+      <div id="macro-suggestions" style="display:flex;gap:8px;margin-bottom:8px;">
+        <div class="macro-item" style="flex:1;"><span class="macro-val" id="res-macro-p" style="color:#e07b4c;">--</span><span class="macro-label">Protein</span></div>
+        <div class="macro-item" style="flex:1;"><span class="macro-val" id="res-macro-c" style="color:#d4a843;">--</span><span class="macro-label">Carbs</span></div>
+        <div class="macro-item" style="flex:1;"><span class="macro-val" id="res-macro-f" style="color:#7b8fe0;">--</span><span class="macro-label">Fat</span></div>
+      </div>
+      <div class="calc-rec-explain" id="res-macro-explain"></div>
+    </div>
+
+    <div class="summary-card" style="margin-bottom:12px;">
       <div class="calc-rec">
         <div class="calc-rec-row">
           <span class="calc-rec-label">Daily Water</span>
@@ -807,7 +838,7 @@ const PB_URL = window.location.origin;
 const pb = new PocketBase(PB_URL);
 
 // ---- State ----
-let userSettings = { cal_goal: 2000, water_goal: 64, presets: [], goal_date: null, goal_weight: null, day_start_hour: 0 };
+let userSettings = { cal_goal: 2000, water_goal: 64, presets: [], goal_date: null, goal_weight: null, day_start_hour: 0, protein_goal: 0, carbs_goal: 0, fat_goal: 0 };
 let currentDate = todayStr();
 let settingsRecordId = null;
 let foodCache = {};   // date -> array of records
@@ -941,6 +972,9 @@ async function loadSettings() {
         userSettings.goal_date = p.goal_date || null;
         userSettings.goal_weight = p.goal_weight || null;
         userSettings.day_start_hour = p.day_start_hour || 0;
+        userSettings.protein_goal = p.protein_goal || 0;
+        userSettings.carbs_goal = p.carbs_goal || 0;
+        userSettings.fat_goal = p.fat_goal || 0;
       }
     }
   } catch (e) {
@@ -958,6 +992,9 @@ async function saveSettingsToServer() {
       goal_date: userSettings.goal_date || null,
       goal_weight: userSettings.goal_weight || null,
       day_start_hour: userSettings.day_start_hour || 0,
+      protein_goal: userSettings.protein_goal || 0,
+      carbs_goal: userSettings.carbs_goal || 0,
+      fat_goal: userSettings.fat_goal || 0,
     },
   };
   try {
@@ -1019,6 +1056,15 @@ function render() {
   document.getElementById('macro-carbs').textContent = Math.round(carbsTotal) + 'g';
   document.getElementById('macro-fat').textContent = Math.round(fatTotal) + 'g';
 
+  // Macro goals display
+  const pg = userSettings.protein_goal, cg = userSettings.carbs_goal, fg = userSettings.fat_goal;
+  document.getElementById('macro-protein-goal').textContent = pg ? `/ ${pg}g` : '';
+  document.getElementById('macro-carbs-goal').textContent = cg ? `/ ${cg}g` : '';
+  document.getElementById('macro-fat-goal').textContent = fg ? `/ ${fg}g` : '';
+  document.getElementById('macro-protein-bar').style.width = pg ? Math.min(100, (proteinTotal / pg) * 100) + '%' : '0%';
+  document.getElementById('macro-carbs-bar').style.width = cg ? Math.min(100, (carbsTotal / cg) * 100) + '%' : '0%';
+  document.getElementById('macro-fat-bar').style.width = fg ? Math.min(100, (fatTotal / fg) * 100) + '%' : '0%';
+
   // Food list
   const foodList = document.getElementById('food-list');
   if (foods.length === 0) {
@@ -1049,6 +1095,9 @@ function render() {
   // Settings inputs
   document.getElementById('input-cal-goal').value = userSettings.cal_goal;
   document.getElementById('input-water-goal').value = userSettings.water_goal;
+  document.getElementById('input-protein-goal').value = userSettings.protein_goal || '';
+  document.getElementById('input-carbs-goal').value = userSettings.carbs_goal || '';
+  document.getElementById('input-fat-goal').value = userSettings.fat_goal || '';
   document.getElementById('input-day-start').value = userSettings.day_start_hour || 0;
 
   renderPresets();
@@ -1361,8 +1410,14 @@ async function saveSettings() {
   const cg = parseInt(document.getElementById('input-cal-goal').value);
   const wg = parseInt(document.getElementById('input-water-goal').value);
   const ds = parseInt(document.getElementById('input-day-start').value);
+  const pg = parseInt(document.getElementById('input-protein-goal').value);
+  const cgm = parseInt(document.getElementById('input-carbs-goal').value);
+  const fgm = parseInt(document.getElementById('input-fat-goal').value);
   if (!isNaN(cg) && cg > 0) userSettings.cal_goal = cg;
   if (!isNaN(wg) && wg > 0) userSettings.water_goal = wg;
+  userSettings.protein_goal = isNaN(pg) ? 0 : pg;
+  userSettings.carbs_goal = isNaN(cgm) ? 0 : cgm;
+  userSettings.fat_goal = isNaN(fgm) ? 0 : fgm;
   userSettings.day_start_hour = isNaN(ds) ? 0 : ds;
   // Recalculate today based on new start hour
   currentDate = todayStr();
@@ -1825,6 +1880,37 @@ function selectPace(calGoal, goalDate, goalWeight) {
   calcData.recCalGoal = calGoal;
   calcData.goalDate = goalDate;
   calcData.goalWeightLbs = goalWeight;
+
+  // Calculate recommended macros based on calorie goal and body weight
+  // Protein: 0.8-1g per lb of goal weight (higher for deficit)
+  // Fat: 25-30% of calories
+  // Carbs: remainder
+  const weightForCalc = goalWeight || calcData.currentWeightLbs;
+  const isDeficit = calcData.currentWeightLbs > goalWeight;
+  const proteinPerLb = isDeficit ? 1.0 : 0.8; // higher protein when cutting
+  const proteinG = Math.round(weightForCalc * proteinPerLb);
+  const fatCals = Math.round(calGoal * 0.27); // ~27% from fat
+  const fatG = Math.round(fatCals / 9);
+  const proteinCals = proteinG * 4;
+  const carbCals = calGoal - proteinCals - fatCals;
+  const carbsG = Math.max(0, Math.round(carbCals / 4));
+
+  calcData.recProtein = proteinG;
+  calcData.recCarbs = carbsG;
+  calcData.recFat = fatG;
+
+  // Display suggestions
+  document.getElementById('res-macro-p').textContent = proteinG + 'g';
+  document.getElementById('res-macro-c').textContent = carbsG + 'g';
+  document.getElementById('res-macro-f').textContent = fatG + 'g';
+
+  const pPct = Math.round((proteinCals / calGoal) * 100);
+  const cPct = Math.round((carbCals / calGoal) * 100);
+  const fPct = Math.round((fatCals / calGoal) * 100);
+  document.getElementById('res-macro-explain').textContent =
+    `Split: ${pPct}% protein, ${cPct}% carbs, ${fPct}% fat. ` +
+    `Protein set to ${proteinPerLb}g per lb of ${isDeficit ? 'goal' : 'body'} weight to ${isDeficit ? 'preserve muscle during weight loss' : 'support muscle growth'}.`;
+
   applyCalcGoals();
 }
 
@@ -1834,6 +1920,9 @@ async function applyCalcGoals() {
   userSettings.goal_date = calcData.goalDate || null;
   userSettings.goal_weight = calcData.goalWeightLbs || null;
   userSettings.current_weight = calcData.currentWeightLbs || null;
+  userSettings.protein_goal = calcData.recProtein || 0;
+  userSettings.carbs_goal = calcData.recCarbs || 0;
+  userSettings.fat_goal = calcData.recFat || 0;
   await saveSettingsToServer();
   render();
   switchTab('track');
