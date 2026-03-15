@@ -1571,13 +1571,16 @@ let html5Scanner = null;
 let scannerLibLoaded = false;
 let scannedProduct = null;
 
-function loadScannerLib() {
+async function loadScannerLib() {
+  if (scannerLibLoaded) return;
+  // First check if the file is accessible
+  const resp = await fetch('/html5-qrcode.min.js', { method: 'HEAD' });
+  if (!resp.ok) throw new Error('Scanner file not found (HTTP ' + resp.status + ')');
   return new Promise((resolve, reject) => {
-    if (scannerLibLoaded) { resolve(); return; }
     const s = document.createElement('script');
     s.src = '/html5-qrcode.min.js';
     s.onload = () => { scannerLibLoaded = true; resolve(); };
-    s.onerror = () => reject(new Error('Failed to load scanner'));
+    s.onerror = () => reject(new Error('Script failed to execute'));
     document.head.appendChild(s);
   });
 }
@@ -1596,7 +1599,7 @@ async function openScanner() {
   try {
     await loadScannerLib();
   } catch (e) {
-    statusEl.textContent = 'Failed to load scanner. Enter barcode manually below.';
+    statusEl.textContent = 'Failed to load scanner: ' + e.message + '. Enter barcode manually below.';
     return;
   }
 
