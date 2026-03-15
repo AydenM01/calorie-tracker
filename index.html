@@ -543,6 +543,16 @@
     font-family: inherit;
   }
   .meal-add-btn:active { transform: scale(0.98); }
+  .meal-fav-btn {
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    float: right;
+  }
+  .meal-fav-btn.saved { color: #e04848; }
 
   .calc-back {
     display: inline-block;
@@ -973,6 +983,7 @@
       <button class="meal-filter" onclick="filterMeals('lunch')" data-filter="lunch">Lunch</button>
       <button class="meal-filter" onclick="filterMeals('dinner')" data-filter="dinner">Dinner</button>
       <button class="meal-filter" onclick="filterMeals('snack')" data-filter="snack">Snack</button>
+      <button class="meal-filter" onclick="filterMeals('favorites')" data-filter="favorites">Saved</button>
     </div>
     <div id="meal-cards"></div>
     <button class="btn-add" style="width:100%;padding:14px;margin-top:8px;" onclick="generateMeals()">Refresh Suggestions</button>
@@ -1244,6 +1255,7 @@ async function loadSettings() {
         userSettings.pref_allergies = p.pref_allergies || [];
         userSettings.pref_proteins = p.pref_proteins || [];
         userSettings.pref_cuisines = p.pref_cuisines || [];
+        userSettings.favorite_meals = p.favorite_meals || [];
       }
     }
   } catch (e) {
@@ -1273,6 +1285,7 @@ async function saveSettingsToServer() {
       pref_allergies: userSettings.pref_allergies || [],
       pref_proteins: userSettings.pref_proteins || [],
       pref_cuisines: userSettings.pref_cuisines || [],
+      favorite_meals: userSettings.favorite_meals || [],
     },
   };
   try {
@@ -2122,18 +2135,32 @@ function filterMeals(type) {
   renderMealCards(type);
 }
 
+function isMealFavorited(meal) {
+  return (userSettings.favorite_meals || []).some(f => f.name === meal.name);
+}
+
 function renderMealCards(filterType) {
-  const filtered = filterType === 'all' ? cachedMeals : cachedMeals.filter(m => m.type === filterType);
+  let source;
+  if (filterType === 'favorites') {
+    source = userSettings.favorite_meals || [];
+  } else {
+    source = filterType === 'all' ? cachedMeals : cachedMeals.filter(m => m.type === filterType);
+  }
   const el = document.getElementById('meal-cards');
 
-  if (filtered.length === 0) {
-    el.innerHTML = '<div class="empty">No meals for this category. Try refreshing.</div>';
+  if (source.length === 0) {
+    el.innerHTML = filterType === 'favorites'
+      ? '<div class="empty">No saved recipes yet. Tap the heart on any meal to save it.</div>'
+      : '<div class="empty">No meals for this category. Try refreshing.</div>';
     return;
   }
 
-  el.innerHTML = filtered.map((m, i) => {
-    const idx = cachedMeals.indexOf(m);
-    return `<div class="meal-card" onclick="toggleMealDetail(${idx})">
+  el.innerHTML = source.map((m, i) => {
+    const isFav = isMealFavorited(m);
+    const dataAttr = `data-meal='${JSON.stringify(m).replace(/'/g, "&#39;")}'`;
+    const favClass = isFav ? ' saved' : '';
+    return `<div class="meal-card" onclick="toggleMealDetail('md-${filterType}-${i}')">
+      <button class="meal-fav-btn${favClass}" onclick="event.stopPropagation();toggleFavorite(this)" ${dataAttr}>${isFav ? '&#9829;' : '&#9825;'}</button>
       <div class="meal-type">${esc(m.type)}</div>
       <div class="meal-name">${esc(m.name)}</div>
       <div class="meal-desc">${esc(m.description || '')}</div>
@@ -2143,25 +2170,46 @@ function renderMealCards(filterType) {
         <span style="color:var(--macro-c);">C: ${m.carbs}g</span>
         <span style="color:var(--macro-f);">F: ${m.fat}g</span>
       </div>
-      <div class="meal-detail" id="meal-detail-${idx}">
+      <div class="meal-detail" id="md-${filterType}-${i}">
         <h4>Ingredients</h4>
         <ul>${(m.ingredients || []).map(ing => `<li>${esc(ing)}</li>`).join('')}</ul>
         <h4>Instructions</h4>
         <ol>${(m.instructions || []).map(step => `<li>${esc(step)}</li>`).join('')}</ol>
-        <button class="meal-add-btn" onclick="event.stopPropagation();logMeal(${idx})">Add to Today's Log</button>
+        <button class="meal-add-btn" onclick="event.stopPropagation();logMealDirect(this)" ${dataAttr}>Add to Today's Log</button>
       </div>
     </div>`;
   }).join('');
 }
 
-function toggleMealDetail(idx) {
-  const detail = document.getElementById('meal-detail-' + idx);
+function toggleMealDetail(id) {
+  const detail = document.getElementById(id);
   if (detail) detail.classList.toggle('open');
 }
 
-async function logMeal(idx) {
-  const m = cachedMeals[idx];
-  if (!m) return;
+async function toggleFavorite(btn) {
+  const meal = JSON.parse(btn.dataset.meal);
+  const favs = userSettings.favorite_meals || [];
+  const idx = favs.findIndex(f => f.name === meal.name);
+  if (idx >= 0) {
+    favs.splice(idx, 1);
+    btn.classList.remove('saved');
+    btn.innerHTML = '&#9825;';
+  } else {
+    favs.push(meal);
+    btn.classList.add('saved');
+    btn.innerHTML = '&#9829;';
+  }
+  userSettings.favorite_meals = favs;
+  await saveSettingsToServer();
+  // Re-render if on favorites tab
+  const activeFilter = document.querySelector('.meal-filter.active');
+  if (activeFilter && activeFilter.dataset.filter === 'favorites') {
+    renderMealCards('favorites');
+  }
+}
+
+async function logMealDirect(btn) {
+  const m = JSON.parse(btn.dataset.meal);
   try {
     await pb.collection('food_entries').create({
       user: userId(),
@@ -2175,13 +2223,11 @@ async function logMeal(idx) {
     });
     await loadDayData(currentDate);
     render();
-    // Update remaining display
     const rem = getRemainingMacros();
     document.getElementById('nutrition-remaining').textContent =
       `Remaining today: ${rem.cal} cal, ${Math.round(rem.protein)}g P, ${Math.round(rem.carbs)}g C, ${Math.round(rem.fat)}g F`;
-    // Visual feedback
-    const btn = document.querySelector(`#meal-detail-${idx} .meal-add-btn`);
-    if (btn) { btn.textContent = 'Added!'; btn.style.background = 'var(--text-light)'; }
+    btn.textContent = 'Added!';
+    btn.style.background = 'var(--text-light)';
   } catch (e) { console.error('Failed to log meal', e); }
 }
 
