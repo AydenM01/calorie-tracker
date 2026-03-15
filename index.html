@@ -721,7 +721,7 @@ async function addWater(oz) {
     });
     await loadDayData(currentDate);
     render();
-  } catch (e) { console.error('Failed to add water', e); }
+  } catch (e) { console.error('Failed to add water', e, JSON.stringify(e.response || {})); alert('Failed to add water: ' + JSON.stringify(e.response || e.message)); }
 }
 
 async function deleteWater(id) {
@@ -759,7 +759,7 @@ async function saveFood() {
     closeFoodModal();
     await loadDayData(currentDate);
     render();
-  } catch (e) { console.error('Failed to add food', e); }
+  } catch (e) { console.error('Failed to add food', e, JSON.stringify(e.response || {})); alert('Failed to add food: ' + JSON.stringify(e.response || e.message)); }
 }
 
 async function deleteFood(id) {
