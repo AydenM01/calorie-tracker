@@ -11,6 +11,7 @@ RUN unzip /tmp/pb.zip -d /pb/ && rm /tmp/pb.zip
 
 COPY ./index.html /pb/pb_public/index.html
 COPY ./setup.html /pb/pb_public/setup.html
+COPY ./html5-qrcode.min.js /pb/pb_public/html5-qrcode.min.js
 
 COPY ./entrypoint.sh /pb/entrypoint.sh
 RUN chmod +x /pb/entrypoint.sh

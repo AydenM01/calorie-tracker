@@ -727,12 +727,12 @@
       <h3 style="margin:0;">Scan Barcode</h3>
       <button onclick="closeScanner()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-light);padding:4px;">&times;</button>
     </div>
-    <video id="scanner-video" style="width:100%;border-radius:10px;margin-bottom:12px;background:#000;" muted playsinline></video>
+    <div id="scanner-reader" style="width:100%;min-height:250px;border-radius:10px;overflow:hidden;margin-bottom:8px;"></div>
     <div id="scanner-status" style="text-align:center;font-size:14px;color:var(--text-light);padding:8px 0;"></div>
-    <div id="scanner-manual" style="display:none;margin-bottom:12px;">
-      <label style="display:block;font-size:13px;font-weight:600;color:var(--text-light);margin-bottom:6px;">Barcode Number</label>
-      <input type="text" id="scanner-barcode-input" placeholder="e.g. 049000042566" inputmode="numeric" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:16px;margin-bottom:8px;outline:none;font-family:inherit;">
-      <button class="btn-add" style="width:100%;" onclick="manualBarcodeLookup()">Look Up</button>
+    <div style="text-align:center;margin-bottom:8px;"><span style="font-size:12px;color:var(--text-light);">or enter barcode manually:</span></div>
+    <div id="scanner-manual" style="margin-bottom:12px;display:flex;gap:8px;">
+      <input type="text" id="scanner-barcode-input" placeholder="e.g. 049000042566" inputmode="numeric" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:16px;outline:none;font-family:inherit;">
+      <button class="btn-add" onclick="manualBarcodeLookup()">Look Up</button>
     </div>
     <div id="scanner-result" style="display:none;">
       <div class="entry-item" style="margin-bottom:12px;" id="scanner-product-info"></div>
@@ -1366,83 +1366,69 @@ function renderHistory() {
 }
 
 // ---- Barcode Scanner ----
-let scannerStream = null;
-let scannerInterval = null;
+let html5Scanner = null;
+let scannerLibLoaded = false;
 let scannedProduct = null;
 
-function openScanner() {
-  var modal = document.getElementById('scanner-modal');
+function loadScannerLib() {
+  return new Promise((resolve, reject) => {
+    if (scannerLibLoaded) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = '/html5-qrcode.min.js';
+    s.onload = () => { scannerLibLoaded = true; resolve(); };
+    s.onerror = () => reject(new Error('Failed to load scanner'));
+    document.head.appendChild(s);
+  });
+}
+
+async function openScanner() {
+  const modal = document.getElementById('scanner-modal');
+  const statusEl = document.getElementById('scanner-status');
   document.getElementById('scanner-result').style.display = 'none';
-  document.getElementById('scanner-status').style.display = 'block';
-  document.getElementById('scanner-manual').style.display = 'block';
+  statusEl.textContent = 'Loading scanner...';
   scannedProduct = null;
   modal.classList.add('open');
 
-  if (!('BarcodeDetector' in window)) {
-    document.getElementById('scanner-status').textContent = 'Camera scanning not available in this browser. Enter barcode number manually.';
+  try {
+    await loadScannerLib();
+  } catch (e) {
+    statusEl.textContent = 'Failed to load scanner. Enter barcode manually below.';
     return;
   }
 
-  document.getElementById('scanner-status').textContent = 'Starting camera...';
-  startNativeScanner(document.getElementById('scanner-status'));
-}
-
-async function startNativeScanner(statusEl) {
+  statusEl.textContent = 'Starting camera...';
   try {
-    scannerStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
-
-    const video = document.getElementById('scanner-video');
-    video.srcObject = scannerStream;
-    video.setAttribute('playsinline', 'true');
-    await video.play();
-
-    statusEl.textContent = 'Point your camera at a barcode...';
-
-    const detector = new BarcodeDetector({
-      formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128']
-    });
-
-    scannerInterval = setInterval(async () => {
-      try {
-        const barcodes = await detector.detect(video);
-        if (barcodes.length > 0) {
-          clearInterval(scannerInterval);
-          scannerInterval = null;
-          onBarcodeScanned(barcodes[0].rawValue);
-        }
-      } catch (e) {
-        // Frame not ready, ignore
-      }
-    }, 200);
+    if (html5Scanner) {
+      try { await html5Scanner.stop(); } catch(e) {}
+      html5Scanner.clear();
+      html5Scanner = null;
+    }
+    html5Scanner = new Html5Qrcode('scanner-reader');
+    await html5Scanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 120 } },
+      onBarcodeScanned,
+      () => {}
+    );
+    statusEl.textContent = 'Point camera at a barcode...';
   } catch (err) {
-    statusEl.textContent = 'Camera error: ' + (err.message || err);
+    statusEl.textContent = 'Camera error: ' + (err.message || err) + '. Enter barcode manually below.';
   }
 }
 
 function closeScanner() {
-  if (scannerInterval) {
-    clearInterval(scannerInterval);
-    scannerInterval = null;
+  if (html5Scanner) {
+    html5Scanner.stop().catch(() => {});
+    html5Scanner.clear();
+    html5Scanner = null;
   }
-  if (scannerStream) {
-    scannerStream.getTracks().forEach(t => t.stop());
-    scannerStream = null;
-  }
-  const video = document.getElementById('scanner-video');
-  if (video) video.srcObject = null;
   document.getElementById('scanner-modal').classList.remove('open');
 }
 
 async function onBarcodeScanned(barcode) {
-  // Stop scanning but keep modal open
-  if (scannerStream) {
-    scannerStream.getTracks().forEach(t => t.stop());
-    scannerStream = null;
+  if (html5Scanner) {
+    try { await html5Scanner.stop(); } catch(e) {}
   }
-  const video = document.getElementById('scanner-video');
-  if (video) video.srcObject = null;
 
   document.getElementById('scanner-status').textContent = `Barcode: ${barcode}. Looking up product...`;
 
@@ -1535,7 +1521,6 @@ function manualBarcodeLookup() {
   const barcode = document.getElementById('scanner-barcode-input').value.trim();
   if (!barcode) return;
   document.getElementById('scanner-status').textContent = 'Looking up ' + barcode + '...';
-  document.getElementById('scanner-status').style.display = 'block';
   onBarcodeScanned(barcode);
 }
 
