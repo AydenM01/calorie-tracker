@@ -97,7 +97,7 @@ async function runSetup() {
   }
 
   // Delete existing collections if re-running
-  for (const name of ['food_entries', 'water_entries', 'user_settings']) {
+  for (const name of ['food_entries', 'water_entries', 'user_settings', 'weigh_ins']) {
     try {
       const existing = await pb.collections.getOne(name);
       log(`Deleting existing "${name}"...`, 'info');
@@ -155,6 +155,20 @@ async function runSetup() {
         { name: 'cal_goal', type: 'number', required: false, options: { min: 0 } },
         { name: 'water_goal', type: 'number', required: false, options: { min: 0 } },
         { name: 'presets', type: 'json', required: false, options: { maxSize: 2000000 } },
+      ],
+    },
+    {
+      name: 'weigh_ins',
+      type: 'base',
+      listRule: authRule,
+      viewRule: authRule,
+      createRule: authRule,
+      updateRule: authRule,
+      deleteRule: authRule,
+      schema: [
+        { name: 'user', type: 'relation', required: true, options: { collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 } },
+        { name: 'weight', type: 'number', required: true, options: { min: 0 } },
+        { name: 'date', type: 'text', required: true, options: {} },
       ],
     },
   ];

@@ -472,6 +472,15 @@
     </div>
     <ul class="entry-list" id="food-list"></ul>
   </div>
+
+  <!-- Weigh-in section -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Weight</h2>
+      <button class="btn-add" onclick="openWeighInModal()">+ Weigh In</button>
+    </div>
+    <div id="weight-display"></div>
+  </div>
 </div>
 
 <!-- ======== SETTINGS PAGE ======== -->
@@ -681,6 +690,17 @@
       <button class="save" onclick="savePreset()">Save</button>
     </div>
   </div>
+<!-- ======== WEIGH-IN MODAL ======== -->
+<div class="modal-overlay" id="weighin-modal">
+  <div class="modal">
+    <h3>Log Weigh-In</h3>
+    <label>Weight (lbs)</label>
+    <input type="number" id="weighin-weight" placeholder="e.g. 178.5" inputmode="decimal" step="0.1">
+    <div class="modal-btns">
+      <button class="cancel" onclick="closeWeighInModal()">Cancel</button>
+      <button class="save" onclick="saveWeighIn()">Log</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -695,6 +715,7 @@ let userSettings = { cal_goal: 2000, water_goal: 64, presets: [], goal_date: nul
 let settingsRecordId = null;
 let foodCache = {};   // date -> array of records
 let waterCache = {};  // date -> array of records
+let weighInCache = [];  // recent weigh-ins sorted by date desc
 let authMode = 'login';
 
 function todayStr() {
@@ -777,7 +798,7 @@ async function onLoginSuccess() {
   document.getElementById('main-tabs').style.display = 'flex';
   document.getElementById('user-display').textContent = pb.authStore.model.name || pb.authStore.model.username;
   await loadSettings();
-  await loadDayData(currentDate);
+  await Promise.all([loadDayData(currentDate), loadWeighIns()]);
   render();
 }
 
@@ -919,39 +940,158 @@ function render() {
   renderPresets();
   renderPresetShortcuts();
   renderGoalBanner();
+  renderWeightDisplay();
+}
+
+// ---- Weigh-ins ----
+async function loadWeighIns() {
+  try {
+    const res = await pb.collection('weigh_ins').getList(1, 50, {
+      filter: `user = "${userId()}"`,
+      sort: '-date',
+    });
+    weighInCache = res.items;
+  } catch (e) {
+    console.error('Failed to load weigh-ins', e);
+    weighInCache = [];
+  }
+}
+
+function openWeighInModal() {
+  document.getElementById('weighin-weight').value = '';
+  document.getElementById('weighin-modal').classList.add('open');
+  document.getElementById('weighin-weight').focus();
+}
+
+function closeWeighInModal() {
+  document.getElementById('weighin-modal').classList.remove('open');
+}
+
+async function saveWeighIn() {
+  const w = parseFloat(document.getElementById('weighin-weight').value);
+  if (!w || w < 50 || w > 700) return;
+  try {
+    await pb.collection('weigh_ins').create({
+      user: userId(),
+      weight: w,
+      date: currentDate,
+    });
+    closeWeighInModal();
+    await loadWeighIns();
+    render();
+  } catch (e) { console.error('Failed to save weigh-in', e); }
+}
+
+async function deleteWeighIn(id) {
+  try {
+    await pb.collection('weigh_ins').delete(id);
+    await loadWeighIns();
+    render();
+  } catch (e) { console.error('Failed to delete weigh-in', e); }
+}
+
+function renderWeightDisplay() {
+  const el = document.getElementById('weight-display');
+  if (weighInCache.length === 0) {
+    el.innerHTML = '<div class="empty">No weigh-ins yet. Track weekly to see your progress!</div>';
+    return;
+  }
+
+  const latest = weighInCache[0];
+  const latestDate = new Date(latest.date + 'T12:00:00');
+  const dateFmt = latestDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  let trendHtml = '';
+  if (weighInCache.length >= 2) {
+    const prev = weighInCache[1];
+    const diff = latest.weight - prev.weight;
+    const sign = diff > 0 ? '+' : '';
+    const color = diff < 0 ? 'var(--primary)' : diff > 0 ? 'var(--danger)' : 'var(--text-light)';
+    trendHtml = `<span style="font-size:13px;font-weight:600;color:${color};margin-left:8px;">${sign}${diff.toFixed(1)} lbs</span>`;
+  }
+
+  // Show last 5 entries
+  const recent = weighInCache.slice(0, 5);
+  el.innerHTML = `
+    <div class="entry-item" style="margin-bottom:8px;">
+      <div class="info">
+        <div class="name" style="font-size:20px;font-weight:700;">${latest.weight} lbs${trendHtml}</div>
+        <div class="time">Last weigh-in: ${dateFmt}</div>
+      </div>
+    </div>
+    ${recent.length > 1 ? '<div style="font-size:12px;color:var(--text-light);margin-bottom:6px;">Recent</div>' : ''}
+    ${recent.map(w => {
+      const d = new Date(w.date + 'T12:00:00');
+      return `<li class="entry-item">
+        <div class="info"><div class="name">${w.weight} lbs</div><div class="time">${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div></div>
+        <div class="right"><button class="btn-del" onclick="deleteWeighIn('${w.id}')">&times;</button></div>
+      </li>`;
+    }).join('')}
+  `;
 }
 
 // ---- Goal banner ----
 function renderGoalBanner() {
   const banner = document.getElementById('goal-banner');
-  if (!userSettings.goal_date || currentDate !== todayStr()) {
+  if (!userSettings.goal_weight || currentDate !== todayStr()) {
     banner.style.display = 'none';
     return;
   }
 
-  const today = new Date();
-  const goalDate = new Date(userSettings.goal_date + 'T12:00:00');
-  const diffMs = goalDate - today;
-  const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const goalWeight = userSettings.goal_weight;
+  const latestWeight = weighInCache.length > 0 ? weighInCache[0].weight : userSettings.current_weight;
+  if (!latestWeight) { banner.style.display = 'none'; return; }
 
-  if (daysLeft <= 0) {
+  const remaining = latestWeight - goalWeight;
+
+  // Check if goal reached
+  if (Math.abs(remaining) <= 1) {
     banner.style.display = 'block';
     banner.className = 'goal-banner reached';
-    banner.innerHTML = `<div class="banner-title">You've reached your goal date!</div>` +
-      `<div class="banner-sub">Goal: ${userSettings.goal_weight} lbs. Time to recalculate in the Goals tab if needed.</div>`;
-  } else {
-    const weeksLeft = Math.floor(daysLeft / 7);
-    let timeStr;
-    if (daysLeft <= 7) timeStr = `${daysLeft} day${daysLeft !== 1 ? 's' : ''}`;
-    else if (weeksLeft < 8) timeStr = `${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} and ${daysLeft % 7} day${daysLeft % 7 !== 1 ? 's' : ''}`;
-    else timeStr = `${weeksLeft} weeks`;
-
-    const goalDateFmt = goalDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    banner.style.display = 'block';
-    banner.className = 'goal-banner';
-    banner.innerHTML = `<div class="banner-title">Keep going! ${timeStr} to reach your goal.</div>` +
-      `<div class="banner-sub">Target: ${userSettings.goal_weight} lbs by ${goalDateFmt}. Stay on track!</div>`;
+    banner.innerHTML = `<div class="banner-title">You've reached your goal!</div>` +
+      `<div class="banner-sub">Current: ${latestWeight} lbs. Goal: ${goalWeight} lbs. Amazing work!</div>`;
+    return;
   }
+
+  // Calculate dynamic goal date from actual rate of change
+  let estimateHtml = '';
+  if (weighInCache.length >= 2) {
+    // Use actual rate from weigh-in history
+    const newest = weighInCache[0];
+    const oldest = weighInCache[weighInCache.length - 1];
+    const daysBetween = (new Date(newest.date + 'T12:00:00') - new Date(oldest.date + 'T12:00:00')) / (1000 * 60 * 60 * 24);
+    if (daysBetween >= 7) {
+      const totalChange = oldest.weight - newest.weight; // positive = weight lost
+      const lbsPerDay = totalChange / daysBetween;
+      if ((remaining > 0 && lbsPerDay > 0) || (remaining < 0 && lbsPerDay < 0)) {
+        const daysToGoal = Math.ceil(Math.abs(remaining) / Math.abs(lbsPerDay));
+        const estDate = new Date();
+        estDate.setDate(estDate.getDate() + daysToGoal);
+        const estFmt = estDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const weeksToGoal = Math.round(daysToGoal / 7);
+        const lbsPerWeek = Math.abs(lbsPerDay * 7).toFixed(1);
+        estimateHtml = `<div class="banner-sub">At your current pace (${lbsPerWeek} lbs/week), you'll reach ${goalWeight} lbs by ${estFmt} (~${weeksToGoal} weeks).</div>`;
+      } else {
+        estimateHtml = `<div class="banner-sub">Your weight is trending the wrong direction. Consider adjusting your calorie goal in the Goals tab.</div>`;
+      }
+    }
+  }
+
+  // Fall back to original goal date if no weigh-in trend
+  if (!estimateHtml && userSettings.goal_date) {
+    const goalDate = new Date(userSettings.goal_date + 'T12:00:00');
+    const daysLeft = Math.ceil((goalDate - new Date()) / (1000 * 60 * 60 * 24));
+    if (daysLeft > 0) {
+      const goalDateFmt = goalDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      estimateHtml = `<div class="banner-sub">Original target: ${goalWeight} lbs by ${goalDateFmt}. Log weigh-ins to get a dynamic estimate!</div>`;
+    }
+  }
+
+  const absDiff = Math.abs(remaining).toFixed(1);
+  const direction = remaining > 0 ? 'to lose' : 'to gain';
+  banner.style.display = 'block';
+  banner.className = 'goal-banner';
+  banner.innerHTML = `<div class="banner-title">${absDiff} lbs ${direction}. Keep going!</div>${estimateHtml}`;
 }
 
 // ---- Date nav ----
@@ -1164,6 +1304,8 @@ document.getElementById('auth-username').addEventListener('keydown', e => { if (
 // ---- Close modals on overlay click ----
 document.getElementById('food-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeFoodModal(); });
 document.getElementById('preset-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closePresetModal(); });
+document.getElementById('weighin-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeWeighInModal(); });
+document.getElementById('weighin-weight').addEventListener('keydown', e => { if (e.key === 'Enter') saveWeighIn(); });
 
 // ---- Calculator ----
 let calcData = {};
