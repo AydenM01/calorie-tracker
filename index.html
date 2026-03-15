@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Tracker">
 <title>Daily Tracker</title>
 <script src="https://cdn.jsdelivr.net/gh/pocketbase/js-sdk@0.21/dist/pocketbase.umd.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root {
     --bg: #fafafa;
@@ -468,7 +469,10 @@
   <div class="section">
     <div class="section-header">
       <h2>Food</h2>
-      <button class="btn-add" onclick="openFoodModal()">+ Add Food</button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn-add" onclick="openScanner()" style="background:var(--text);">Scan</button>
+        <button class="btn-add" onclick="openFoodModal()">+ Add</button>
+      </div>
     </div>
     <ul class="entry-list" id="food-list"></ul>
   </div>
@@ -715,6 +719,27 @@
       <button class="save" onclick="savePreset()">Save</button>
     </div>
   </div>
+<!-- ======== SCANNER MODAL ======== -->
+<div class="modal-overlay" id="scanner-modal">
+  <div class="modal" style="padding-top:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <h3 style="margin:0;">Scan Barcode</h3>
+      <button onclick="closeScanner()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-light);padding:4px;">&times;</button>
+    </div>
+    <div id="scanner-reader" style="width:100%;border-radius:10px;overflow:hidden;margin-bottom:12px;"></div>
+    <div id="scanner-status" style="text-align:center;font-size:14px;color:var(--text-light);padding:8px 0;"></div>
+    <div id="scanner-result" style="display:none;">
+      <div class="entry-item" style="margin-bottom:12px;" id="scanner-product-info"></div>
+      <label>Servings</label>
+      <input type="number" id="scanner-servings" value="1" min="0.25" step="0.25" inputmode="decimal" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:16px;margin-bottom:14px;outline:none;font-family:inherit;">
+      <div class="modal-btns">
+        <button class="cancel" onclick="closeScanner()">Cancel</button>
+        <button class="save" onclick="addScannedFood()">Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ======== WEIGH-IN MODAL ======== -->
 <div class="modal-overlay" id="weighin-modal">
   <div class="modal">
@@ -1334,6 +1359,139 @@ function renderHistory() {
   `).join('');
 }
 
+// ---- Barcode Scanner ----
+let html5Scanner = null;
+let scannedProduct = null;
+
+function openScanner() {
+  document.getElementById('scanner-result').style.display = 'none';
+  document.getElementById('scanner-status').textContent = 'Point your camera at a barcode...';
+  document.getElementById('scanner-modal').classList.add('open');
+  scannedProduct = null;
+
+  // Small delay to let modal render
+  setTimeout(() => {
+    html5Scanner = new Html5Qrcode('scanner-reader');
+    html5Scanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 150 }, formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+      ]},
+      onBarcodeScanned,
+      () => {} // ignore errors (no code found in frame)
+    ).catch(err => {
+      document.getElementById('scanner-status').textContent = 'Camera access denied or unavailable.';
+      console.error('Scanner error:', err);
+    });
+  }, 300);
+}
+
+function closeScanner() {
+  if (html5Scanner) {
+    html5Scanner.stop().catch(() => {});
+    html5Scanner.clear();
+    html5Scanner = null;
+  }
+  document.getElementById('scanner-modal').classList.remove('open');
+}
+
+async function onBarcodeScanned(barcode) {
+  // Stop scanning
+  if (html5Scanner) {
+    html5Scanner.stop().catch(() => {});
+  }
+
+  document.getElementById('scanner-status').textContent = `Barcode: ${barcode}. Looking up product...`;
+
+  try {
+    const resp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`);
+    const data = await resp.json();
+
+    if (data.status === 1 && data.product) {
+      const p = data.product;
+      const name = p.product_name || p.product_name_en || 'Unknown Product';
+      const brand = p.brands || '';
+      const nutriments = p.nutriments || {};
+
+      // Get calories per serving
+      let calPerServing = null;
+      let servingDesc = '';
+
+      if (nutriments['energy-kcal_serving']) {
+        calPerServing = Math.round(nutriments['energy-kcal_serving']);
+        servingDesc = p.serving_size || 'serving';
+      } else if (nutriments['energy-kcal_100g']) {
+        calPerServing = Math.round(nutriments['energy-kcal_100g']);
+        servingDesc = '100g';
+      } else if (nutriments['energy-kcal']) {
+        calPerServing = Math.round(nutriments['energy-kcal']);
+        servingDesc = 'serving';
+      }
+
+      if (calPerServing === null) {
+        document.getElementById('scanner-status').textContent = `Found "${name}" but no calorie data available. Try manual entry.`;
+        setTimeout(() => {
+          closeScanner();
+          document.getElementById('food-name').value = brand ? `${name} (${brand})` : name;
+          openFoodModal();
+        }, 1500);
+        return;
+      }
+
+      scannedProduct = {
+        name: brand ? `${name} (${brand})` : name,
+        calPerServing,
+        servingDesc,
+      };
+
+      document.getElementById('scanner-product-info').innerHTML = `
+        <div class="info">
+          <div class="name">${esc(scannedProduct.name)}</div>
+          <div class="time">${calPerServing} cal per ${esc(servingDesc)}</div>
+        </div>
+      `;
+      document.getElementById('scanner-servings').value = '1';
+      document.getElementById('scanner-status').style.display = 'none';
+      document.getElementById('scanner-result').style.display = 'block';
+    } else {
+      document.getElementById('scanner-status').textContent = `Product not found for barcode ${barcode}. Try manual entry.`;
+      setTimeout(() => {
+        closeScanner();
+        openFoodModal();
+      }, 2000);
+    }
+  } catch (e) {
+    console.error('Lookup failed:', e);
+    document.getElementById('scanner-status').textContent = 'Lookup failed. Check your internet connection.';
+  }
+}
+
+async function addScannedFood() {
+  if (!scannedProduct) return;
+  const servings = parseFloat(document.getElementById('scanner-servings').value) || 1;
+  const totalCal = Math.round(scannedProduct.calPerServing * servings);
+  const name = servings !== 1
+    ? `${scannedProduct.name} (x${servings})`
+    : scannedProduct.name;
+
+  try {
+    await pb.collection('food_entries').create({
+      user: userId(),
+      name,
+      calories: totalCal,
+      date: currentDate,
+      time: nowTime(),
+    });
+    closeScanner();
+    await loadDayData(currentDate);
+    render();
+  } catch (e) { console.error('Failed to add scanned food', e); }
+}
+
 // ---- Enter key support in modals ----
 document.getElementById('food-cal').addEventListener('keydown', e => { if (e.key === 'Enter') saveFood(); });
 document.getElementById('preset-cal').addEventListener('keydown', e => { if (e.key === 'Enter') savePreset(); });
@@ -1344,6 +1502,8 @@ document.getElementById('auth-username').addEventListener('keydown', e => { if (
 document.getElementById('food-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeFoodModal(); });
 document.getElementById('preset-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closePresetModal(); });
 document.getElementById('weighin-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeWeighInModal(); });
+document.getElementById('scanner-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeScanner(); });
+document.getElementById('scanner-servings').addEventListener('keydown', e => { if (e.key === 'Enter') addScannedFood(); });
 document.getElementById('weighin-weight').addEventListener('keydown', e => { if (e.key === 'Enter') saveWeighIn(); });
 
 // ---- Calculator ----
