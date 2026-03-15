@@ -242,11 +242,40 @@
   /* Settings */
   .settings-row {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     margin-bottom: 14px;
   }
-  .settings-row > div { flex: 1; }
-  .settings-row input { font-size: 16px; padding: 14px 12px; }
+  .settings-row > div { flex: 1; min-width: 0; }
+  .settings-row input {
+    width: 100%;
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 10px;
+    font-size: 16px;
+    font-family: inherit;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    margin-bottom: 0;
+  }
+  .settings-row input:focus { border-color: var(--primary); background: #fff; }
+  .settings-row label { display: block; font-size: 12px; font-weight: 600; color: var(--text-light); margin-bottom: 5px; }
+
+  /* Standalone inputs (settings page, calculator) */
+  .page input, .page select {
+    width: 100%;
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 14px;
+    font-size: 17px;
+    margin-bottom: 14px;
+    outline: none;
+    font-family: inherit;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .page input:focus, .page select:focus { border-color: var(--primary); background: #fff; }
+  .page label { display: block; font-size: 13px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; }
 
   /* Tabs (bottom nav) */
   .tabs {
@@ -574,7 +603,7 @@
     </div>
     <div style="margin-bottom:14px;">
       <label>Day Starts At</label>
-      <select id="input-day-start" style="width:100%;border:2px solid var(--border);border-radius:14px;padding:16px 14px;font-size:17px;font-family:inherit;background:var(--bg);color:var(--text);outline:none;">
+      <select id="input-day-start">
         <option value="0">12:00 AM (Midnight)</option>
         <option value="1">1:00 AM</option>
         <option value="2">2:00 AM</option>
