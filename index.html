@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Tracker">
 <title>Daily Tracker</title>
-<script src="https://cdn.jsdelivr.net/gh/pocketbase/js-sdk@master/dist/pocketbase.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/pocketbase/js-sdk@0.21/dist/pocketbase.umd.js"></script>
 <style>
   :root {
     --bg: #fafafa;
@@ -569,7 +569,7 @@ function logout() {
 async function onLoginSuccess() {
   showPage('track');
   document.getElementById('main-tabs').style.display = 'flex';
-  document.getElementById('user-display').textContent = pb.authStore.record.name || pb.authStore.record.username;
+  document.getElementById('user-display').textContent = pb.authStore.model.name || pb.authStore.model.username;
   await loadSettings();
   await loadDayData(currentDate);
   render();
@@ -592,11 +592,11 @@ function switchTab(name) {
 }
 
 // ---- API helpers ----
-function userId() { return pb.authStore.record.id; }
+function userId() { return pb.authStore.model.id; }
 
 async function loadSettings() {
   try {
-    const records = await pb.collection('user_settings').getList(1, 1, { filter: `user = '${userId()}'` });
+    const records = await pb.collection('user_settings').getList(1, 1, { filter: `user = "${userId()}"` });
     if (records.items.length > 0) {
       const r = records.items[0];
       settingsRecordId = r.id;
@@ -632,11 +632,11 @@ async function loadDayData(date) {
   try {
     const [foodRes, waterRes] = await Promise.all([
       pb.collection('food_entries').getList(1, 200, {
-        filter: `user = '${userId()}' && date = '${date}'`,
+        filter: `user = "${userId()}" && date = "${date}"`,
         sort: 'created',
       }),
       pb.collection('water_entries').getList(1, 200, {
-        filter: `user = '${userId()}' && date = '${date}'`,
+        filter: `user = "${userId()}" && date = "${date}"`,
         sort: 'created',
       }),
     ]);
@@ -861,11 +861,11 @@ async function loadHistory() {
   try {
     const [foodRes, waterRes] = await Promise.all([
       pb.collection('food_entries').getList(1, 500, {
-        filter: `user = '${userId()}' && date >= '${oldest}' && date <= '${newest}'`,
+        filter: `user = "${userId()}" && date >= "${oldest}" && date <= "${newest}"`,
         sort: '-date',
       }),
       pb.collection('water_entries').getList(1, 500, {
-        filter: `user = '${userId()}' && date >= '${oldest}' && date <= '${newest}'`,
+        filter: `user = "${userId()}" && date >= "${oldest}" && date <= "${newest}"`,
         sort: '-date',
       }),
     ]);

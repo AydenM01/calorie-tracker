@@ -1,8 +1,8 @@
 #!/bin/sh
 
-# Create superuser on first boot if env vars are set
+# Create admin on first boot if env vars are set
 if [ -n "$PB_ADMIN_EMAIL" ] && [ -n "$PB_ADMIN_PASSWORD" ]; then
-  /pb/pocketbase superuser upsert "$PB_ADMIN_EMAIL" "$PB_ADMIN_PASSWORD" || echo "Warning: superuser upsert failed (may be fine on first run)"
+  /pb/pocketbase admin create "$PB_ADMIN_EMAIL" "$PB_ADMIN_PASSWORD" 2>/dev/null || true
   echo "Admin account ready."
 fi
 
