@@ -503,6 +503,31 @@
         <input type="number" id="input-water-goal" inputmode="numeric">
       </div>
     </div>
+    <div style="margin-bottom:14px;">
+      <label>Day Starts At</label>
+      <select id="input-day-start" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:16px;font-family:inherit;background:var(--card);color:var(--text);outline:none;">
+        <option value="0">12:00 AM (Midnight)</option>
+        <option value="1">1:00 AM</option>
+        <option value="2">2:00 AM</option>
+        <option value="3">3:00 AM</option>
+        <option value="4">4:00 AM</option>
+        <option value="5">5:00 AM</option>
+        <option value="6">6:00 AM</option>
+        <option value="7">7:00 AM</option>
+        <option value="8">8:00 AM</option>
+        <option value="9">9:00 AM</option>
+        <option value="10">10:00 AM</option>
+        <option value="11">11:00 AM</option>
+        <option value="12">12:00 PM (Noon)</option>
+        <option value="13">1:00 PM</option>
+        <option value="14">2:00 PM</option>
+        <option value="15">3:00 PM</option>
+        <option value="16">4:00 PM</option>
+        <option value="17">5:00 PM</option>
+        <option value="18">6:00 PM</option>
+      </select>
+      <p style="font-size:12px;color:var(--text-light);margin-top:6px;">Food and water logged before this time count toward the previous day. Useful for night shifts.</p>
+    </div>
     <button class="btn-add" style="width:100%;" onclick="saveSettings()">Save Goals</button>
   </div>
   <div class="summary-card">
@@ -711,7 +736,7 @@ const pb = new PocketBase(PB_URL);
 
 // ---- State ----
 let currentDate = todayStr();
-let userSettings = { cal_goal: 2000, water_goal: 64, presets: [], goal_date: null, goal_weight: null };
+let userSettings = { cal_goal: 2000, water_goal: 64, presets: [], goal_date: null, goal_weight: null, day_start_hour: 0 };
 let settingsRecordId = null;
 let foodCache = {};   // date -> array of records
 let waterCache = {};  // date -> array of records
@@ -720,6 +745,11 @@ let authMode = 'login';
 
 function todayStr() {
   const d = new Date();
+  // Shift by day_start_hour: if current hour < start hour, it's still "yesterday"
+  const startHour = userSettings.day_start_hour || 0;
+  if (d.getHours() < startHour) {
+    d.setDate(d.getDate() - 1);
+  }
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
@@ -798,6 +828,7 @@ async function onLoginSuccess() {
   document.getElementById('main-tabs').style.display = 'flex';
   document.getElementById('user-display').textContent = pb.authStore.model.name || pb.authStore.model.username;
   await loadSettings();
+  currentDate = todayStr(); // Recalculate after loading day_start_hour
   await Promise.all([loadDayData(currentDate), loadWeighIns()]);
   render();
 }
@@ -837,6 +868,7 @@ async function loadSettings() {
         userSettings.presets = p.presets || [];
         userSettings.goal_date = p.goal_date || null;
         userSettings.goal_weight = p.goal_weight || null;
+        userSettings.day_start_hour = p.day_start_hour || 0;
       }
     }
   } catch (e) {
@@ -853,6 +885,7 @@ async function saveSettingsToServer() {
       presets: userSettings.presets,
       goal_date: userSettings.goal_date || null,
       goal_weight: userSettings.goal_weight || null,
+      day_start_hour: userSettings.day_start_hour || 0,
     },
   };
   try {
@@ -936,6 +969,7 @@ function render() {
   // Settings inputs
   document.getElementById('input-cal-goal').value = userSettings.cal_goal;
   document.getElementById('input-water-goal').value = userSettings.water_goal;
+  document.getElementById('input-day-start').value = userSettings.day_start_hour || 0;
 
   renderPresets();
   renderPresetShortcuts();
@@ -1232,9 +1266,14 @@ async function deletePreset(i) {
 async function saveSettings() {
   const cg = parseInt(document.getElementById('input-cal-goal').value);
   const wg = parseInt(document.getElementById('input-water-goal').value);
+  const ds = parseInt(document.getElementById('input-day-start').value);
   if (!isNaN(cg) && cg > 0) userSettings.cal_goal = cg;
   if (!isNaN(wg) && wg > 0) userSettings.water_goal = wg;
+  userSettings.day_start_hour = isNaN(ds) ? 0 : ds;
+  // Recalculate today based on new start hour
+  currentDate = todayStr();
   await saveSettingsToServer();
+  await loadDayData(currentDate);
   render();
   switchTab('track');
 }
