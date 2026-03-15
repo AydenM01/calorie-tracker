@@ -548,7 +548,8 @@ async function doAuth() {
     await pb.collection('users').authWithPassword(username, pass);
     onLoginSuccess();
   } catch (e) {
-    const detail = e.response?.data ? JSON.stringify(e.response.data) : (e.message || 'Authentication failed.');
+    console.error('Auth error:', e, JSON.stringify(e.response || {}));
+    const detail = JSON.stringify(e.response || e.message || 'Authentication failed.');
     errEl.textContent = detail;
     errEl.style.display = 'block';
   } finally {
