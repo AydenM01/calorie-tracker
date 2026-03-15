@@ -154,7 +154,7 @@ async function runSetup() {
         { name: 'user', type: 'relation', required: true, options: { collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 } },
         { name: 'cal_goal', type: 'number', required: false, options: { min: 0 } },
         { name: 'water_goal', type: 'number', required: false, options: { min: 0 } },
-        { name: 'presets', type: 'json', required: false, options: {} },
+        { name: 'presets', type: 'json', required: false, options: { maxSize: 2000000 } },
       ],
     },
   ];
