@@ -455,8 +455,8 @@
   .pace-card .pace-cals { font-size: 16px; font-weight: 800; color: var(--primary); }
   .pace-card .pace-detail { font-size: 13px; color: var(--text-light); line-height: 1.4; }
   .pace-card .pace-date { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 4px; }
-  .pace-card.pace-recommended { border-color: var(--primary); background: var(--primary-light); }
   .pace-card.pace-recommended .pace-label::after { content: ' (Recommended)'; font-weight: 400; font-size: 12px; color: var(--primary); }
+  .pace-card.pace-selected { border-color: var(--primary); background: var(--primary-light); }
   .calc-back {
     display: inline-block;
     font-size: 14px;
@@ -1887,7 +1887,7 @@ function calcCompute() {
     paceSub.textContent = `You're close to your goal weight. Here's your maintenance plan.`;
     const calGoal = Math.round(tdee);
     paceEl.innerHTML = `
-      <button class="pace-card pace-recommended" onclick="selectPace(${calGoal}, null, ${goalWeightLbs})">
+      <button class="pace-card pace-recommended" onclick="selectPace(${calGoal}, null, ${goalWeightLbs}, this)">
         <div class="pace-top"><span class="pace-label">Maintain</span><span class="pace-cals">${calGoal} cal/day</span></div>
         <div class="pace-detail">Eat at your TDEE to maintain your current weight.</div>
       </button>`;
@@ -1911,7 +1911,7 @@ function calcCompute() {
       const dateFmt = goalDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const dateStr = goalDate.toISOString().split('T')[0];
       const recClass = p.rec ? ' pace-recommended' : '';
-      return `<button class="pace-card${recClass}" onclick="selectPace(${cal}, '${dateStr}', ${goalWeightLbs})">
+      return `<button class="pace-card${recClass}" onclick="selectPace(${cal}, '${dateStr}', ${goalWeightLbs}, this)">
         <div class="pace-top"><span class="pace-label">${p.label}</span><span class="pace-cals">${cal} cal/day</span></div>
         <div class="pace-detail">${p.desc} &middot; ${actualDeficit} cal deficit from TDEE</div>
         <div class="pace-date">Goal by ${dateFmt} (~${weeks} weeks)</div>
@@ -1934,7 +1934,7 @@ function calcCompute() {
       const dateFmt = goalDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const dateStr = goalDate.toISOString().split('T')[0];
       const recClass = p.rec ? ' pace-recommended' : '';
-      return `<button class="pace-card${recClass}" onclick="selectPace(${cal}, '${dateStr}', ${goalWeightLbs})">
+      return `<button class="pace-card${recClass}" onclick="selectPace(${cal}, '${dateStr}', ${goalWeightLbs}, this)">
         <div class="pace-top"><span class="pace-label">${p.label}</span><span class="pace-cals">${cal} cal/day</span></div>
         <div class="pace-detail">${p.desc} &middot; ${p.surplus} cal surplus above TDEE</div>
         <div class="pace-date">Goal by ${dateFmt} (~${weeks} weeks)</div>
@@ -1955,7 +1955,10 @@ function calcCompute() {
   document.getElementById('calc-results').style.display = 'block';
 }
 
-function selectPace(calGoal, goalDate, goalWeight) {
+function selectPace(calGoal, goalDate, goalWeight, el) {
+  document.querySelectorAll('.pace-card').forEach(c => c.classList.remove('pace-selected'));
+  if (el) el.classList.add('pace-selected');
+
   calcData.recCalGoal = calGoal;
   calcData.goalDate = goalDate;
   calcData.goalWeightLbs = goalWeight;
