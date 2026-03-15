@@ -1053,6 +1053,7 @@ async function loadSettings() {
         userSettings.protein_goal = p.protein_goal || 0;
         userSettings.carbs_goal = p.carbs_goal || 0;
         userSettings.fat_goal = p.fat_goal || 0;
+        userSettings.current_weight = p.current_weight || null;
       }
     }
   } catch (e) {
@@ -1073,6 +1074,7 @@ async function saveSettingsToServer() {
       protein_goal: userSettings.protein_goal || 0,
       carbs_goal: userSettings.carbs_goal || 0,
       fat_goal: userSettings.fat_goal || 0,
+      current_weight: userSettings.current_weight || null,
     },
   };
   try {
