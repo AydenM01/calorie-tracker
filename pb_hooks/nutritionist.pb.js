@@ -1,24 +1,25 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-routerAdd("POST", "/api/nutritionist", (e) => {
-  const authRecord = e.auth;
-  if (!authRecord) {
-    return e.json(401, { error: "Unauthorized" });
+routerAdd("POST", "/api/nutritionist", (c) => {
+  const info = $apis.requestInfo(c);
+
+  if (!info.authRecord) {
+    return c.json(401, { error: "Unauthorized" });
   }
 
-  const body = e.requestInfo().body;
+  const body = info.data;
   const remainingCal = body.remaining_cal || 2000;
   const remainingProtein = body.remaining_protein || 150;
   const remainingCarbs = body.remaining_carbs || 200;
   const remainingFat = body.remaining_fat || 60;
-  const mealType = body.meal_type || "any"; // breakfast, lunch, dinner, snack, any
+  const mealType = body.meal_type || "any";
   const preferences = body.preferences || "";
   const allergies = body.allergies || "";
   const cuisines = body.cuisines || "";
 
   const apiKey = $os.getenv("GEMINI_API_KEY");
   if (!apiKey) {
-    return e.json(500, { error: "Gemini API key not configured" });
+    return c.json(500, { error: "Gemini API key not configured" });
   }
 
   const prompt = `You are a nutritionist AI. Generate ${mealType === "any" ? "4 meals (1 breakfast, 1 lunch, 1 dinner, 1 snack)" : "3 " + mealType + " options"} that fit within these remaining daily macros:
@@ -48,31 +49,35 @@ Respond ONLY with valid JSON in this exact format, no markdown, no code blocks:
   }
 ]`;
 
-  const res = $http.send({
-    url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.8,
-        maxOutputTokens: 2048,
-      },
-    }),
-  });
+  let res;
+  try {
+    res = $http.send({
+      url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey,
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.8,
+          maxOutputTokens: 2048,
+        },
+      }),
+    });
+  } catch (err) {
+    return c.json(500, { error: "HTTP request failed: " + String(err) });
+  }
 
   if (res.statusCode !== 200) {
-    return e.json(500, { error: "Gemini API error", status: res.statusCode });
+    return c.json(500, { error: "Gemini API error (HTTP " + res.statusCode + ")", body: res.raw });
   }
 
   try {
     const data = res.json;
     const text = data.candidates[0].content.parts[0].text;
-    // Clean potential markdown code blocks
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const meals = JSON.parse(cleaned);
-    return e.json(200, { meals: meals });
+    return c.json(200, { meals: meals });
   } catch (err) {
-    return e.json(500, { error: "Failed to parse response", detail: String(err) });
+    return c.json(500, { error: "Failed to parse response: " + String(err) });
   }
-}, $apis.requireAuth());
+}, $apis.requireRecordAuth());

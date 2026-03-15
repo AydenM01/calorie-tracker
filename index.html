@@ -2095,7 +2095,7 @@ async function generateMeals() {
     } else {
       document.getElementById('nutrition-loading').style.display = 'none';
       document.getElementById('nutrition-meals').style.display = 'block';
-      document.getElementById('meal-cards').innerHTML = `<div class="empty">Failed to generate meals: ${data.error || 'Unknown error'}. Try again.</div>`;
+      document.getElementById('meal-cards').innerHTML = `<div class="empty">Failed to generate meals: ${data.error || data.message || JSON.stringify(data)}. Try again.</div>`;
     }
   } catch (e) {
     document.getElementById('nutrition-loading').style.display = 'none';
