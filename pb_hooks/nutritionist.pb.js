@@ -22,7 +22,8 @@ routerAdd("POST", "/api/nutritionist", (c) => {
     return c.json(500, { error: "Gemini API key not configured" });
   }
 
-  const prompt = `You are a nutritionist AI. Generate ${mealType === "any" ? "4 meals (1 breakfast, 1 lunch, 1 dinner, 1 snack)" : "3 " + mealType + " options"} that fit within these remaining daily macros:
+  const seed = Math.floor(Math.random() * 100000);
+  const prompt = `You are a creative nutritionist AI. Generate ${mealType === "any" ? "4 meals (1 breakfast, 1 lunch, 1 dinner, 1 snack)" : "3 " + mealType + " options"} that fit within these remaining daily macros. Be creative and varied — suggest different meals each time (seed: ${seed}):
 - Calories: ${remainingCal} cal remaining
 - Protein: ${remainingProtein}g remaining
 - Carbs: ${remainingCarbs}g remaining
@@ -58,7 +59,7 @@ Respond ONLY with valid JSON in this exact format, no markdown, no code blocks:
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.8,
+          temperature: 1.2,
           maxOutputTokens: 2048,
         },
       }),
