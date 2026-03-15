@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Tracker">
 <title>Daily Tracker</title>
 <script src="https://cdn.jsdelivr.net/gh/pocketbase/js-sdk@0.21/dist/pocketbase.umd.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" async></script>
 <style>
   :root {
     --bg: #fafafa;
@@ -1364,29 +1364,43 @@ let html5Scanner = null;
 let scannedProduct = null;
 
 function openScanner() {
+  if (typeof Html5Qrcode === 'undefined') {
+    alert('Scanner is still loading. Please try again in a moment.');
+    return;
+  }
   document.getElementById('scanner-result').style.display = 'none';
   document.getElementById('scanner-status').textContent = 'Point your camera at a barcode...';
+  document.getElementById('scanner-status').style.display = 'block';
   document.getElementById('scanner-modal').classList.add('open');
   scannedProduct = null;
 
   // Small delay to let modal render
   setTimeout(() => {
-    html5Scanner = new Html5Qrcode('scanner-reader');
-    html5Scanner.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 250, height: 150 }, formatsToSupport: [
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.CODE_128,
-      ]},
-      onBarcodeScanned,
-      () => {} // ignore errors (no code found in frame)
-    ).catch(err => {
-      document.getElementById('scanner-status').textContent = 'Camera access denied or unavailable.';
-      console.error('Scanner error:', err);
-    });
+    try {
+      html5Scanner = new Html5Qrcode('scanner-reader');
+      const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+      if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+        config.formatsToSupport = [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+        ];
+      }
+      html5Scanner.start(
+        { facingMode: 'environment' },
+        config,
+        onBarcodeScanned,
+        () => {}
+      ).catch(err => {
+        document.getElementById('scanner-status').textContent = 'Camera access denied or unavailable.';
+        console.error('Scanner error:', err);
+      });
+    } catch (err) {
+      document.getElementById('scanner-status').textContent = 'Scanner not available. Try manual entry.';
+      console.error('Scanner init error:', err);
+    }
   }, 300);
 }
 
