@@ -760,8 +760,8 @@ const PB_URL = window.location.origin;
 const pb = new PocketBase(PB_URL);
 
 // ---- State ----
-let currentDate = todayStr();
 let userSettings = { cal_goal: 2000, water_goal: 64, presets: [], goal_date: null, goal_weight: null, day_start_hour: 0 };
+let currentDate = todayStr();
 let settingsRecordId = null;
 let foodCache = {};   // date -> array of records
 let waterCache = {};  // date -> array of records
