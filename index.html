@@ -1369,24 +1369,25 @@ let scannerInterval = null;
 let scannedProduct = null;
 
 function openScanner() {
-  const modal = document.getElementById('scanner-modal');
-  const statusEl = document.getElementById('scanner-status');
-  const resultEl = document.getElementById('scanner-result');
-  const manualEl = document.getElementById('scanner-manual');
-
-  resultEl.style.display = 'none';
-  statusEl.style.display = 'block';
-  manualEl.style.display = 'block';
-  scannedProduct = null;
+  alert('openScanner called');
+  var modal = document.getElementById('scanner-modal');
+  alert('modal found: ' + !!modal + ', classes: ' + modal.className);
   modal.classList.add('open');
+  alert('class after add: ' + modal.className);
+
+  document.getElementById('scanner-result').style.display = 'none';
+  document.getElementById('scanner-status').style.display = 'block';
+  document.getElementById('scanner-status').textContent = 'Scanner modal is open!';
+  document.getElementById('scanner-manual').style.display = 'block';
+  scannedProduct = null;
 
   if (!('BarcodeDetector' in window)) {
-    statusEl.textContent = 'Camera scanning not available in this browser. Enter barcode number manually.';
+    document.getElementById('scanner-status').textContent = 'Camera scanning not available. Enter barcode number manually.';
     return;
   }
 
-  statusEl.textContent = 'Starting camera...';
-  startNativeScanner(statusEl);
+  document.getElementById('scanner-status').textContent = 'Starting camera...';
+  startNativeScanner(document.getElementById('scanner-status'));
 }
 
 async function startNativeScanner(statusEl) {
