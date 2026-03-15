@@ -333,14 +333,10 @@
     <p>Calories &amp; water, simplified.</p>
     <div class="auth-form">
       <div class="auth-error" id="auth-error"></div>
-      <label>Email</label>
-      <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
+      <label>Username</label>
+      <input type="text" id="auth-username" placeholder="e.g. ayden" autocomplete="username">
       <label>Password</label>
       <input type="password" id="auth-pass" placeholder="Min 8 characters" autocomplete="current-password">
-      <div id="auth-name-wrap" style="display:none;">
-        <label>Name</label>
-        <input type="text" id="auth-name" placeholder="Your name" autocomplete="name">
-      </div>
       <button class="btn-auth" id="auth-btn" onclick="doAuth()">Log In</button>
       <div class="auth-toggle">
         <span id="auth-toggle-text">No account?</span> <a onclick="toggleAuthMode()" id="auth-toggle-link">Sign Up</a>
@@ -525,32 +521,30 @@ function toggleAuthMode() {
   document.getElementById('auth-btn').textContent = authMode === 'login' ? 'Log In' : 'Sign Up';
   document.getElementById('auth-toggle-text').textContent = authMode === 'login' ? 'No account?' : 'Have an account?';
   document.getElementById('auth-toggle-link').textContent = authMode === 'login' ? 'Sign Up' : 'Log In';
-  document.getElementById('auth-name-wrap').style.display = authMode === 'signup' ? 'block' : 'none';
   document.getElementById('auth-error').style.display = 'none';
 }
 
 async function doAuth() {
-  const email = document.getElementById('auth-email').value.trim();
+  const username = document.getElementById('auth-username').value.trim();
   const pass = document.getElementById('auth-pass').value;
   const errEl = document.getElementById('auth-error');
   errEl.style.display = 'none';
 
-  if (!email || !pass) { errEl.textContent = 'Email and password required.'; errEl.style.display = 'block'; return; }
+  if (!username || !pass) { errEl.textContent = 'Username and password required.'; errEl.style.display = 'block'; return; }
 
   const btn = document.getElementById('auth-btn');
   btn.disabled = true;
 
   try {
     if (authMode === 'signup') {
-      const name = document.getElementById('auth-name').value.trim();
       await pb.collection('users').create({
-        email,
+        username,
         password: pass,
         passwordConfirm: pass,
-        name: name || email.split('@')[0],
+        name: username,
       });
     }
-    await pb.collection('users').authWithPassword(email, pass);
+    await pb.collection('users').authWithPassword(username, pass);
     onLoginSuccess();
   } catch (e) {
     errEl.textContent = e.message || 'Authentication failed.';
@@ -572,7 +566,7 @@ function logout() {
 async function onLoginSuccess() {
   showPage('track');
   document.getElementById('main-tabs').style.display = 'flex';
-  document.getElementById('user-display').textContent = pb.authStore.record.name || pb.authStore.record.email;
+  document.getElementById('user-display').textContent = pb.authStore.record.name || pb.authStore.record.username;
   await loadSettings();
   await loadDayData(currentDate);
   render();
@@ -909,6 +903,7 @@ function renderHistory() {
 document.getElementById('food-cal').addEventListener('keydown', e => { if (e.key === 'Enter') saveFood(); });
 document.getElementById('preset-cal').addEventListener('keydown', e => { if (e.key === 'Enter') savePreset(); });
 document.getElementById('auth-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doAuth(); });
+document.getElementById('auth-username').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('auth-pass').focus(); });
 
 // ---- Close modals on overlay click ----
 document.getElementById('food-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeFoodModal(); });
