@@ -323,10 +323,6 @@
   }
   .user-bar a { color: var(--danger); cursor: pointer; text-decoration: none; font-weight: 600; }
 
-  /* Scanner */
-  #scanner-reader video { width: 100% !important; border-radius: 10px; }
-  #scanner-reader img { display: none; }
-
   /* Goal banner */
   .goal-banner {
     background: var(--primary-light);
@@ -729,7 +725,7 @@
       <h3 style="margin:0;">Scan Barcode</h3>
       <button onclick="closeScanner()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-light);padding:4px;">&times;</button>
     </div>
-    <div id="scanner-reader" style="width:100%;min-height:300px;border-radius:10px;overflow:hidden;margin-bottom:12px;"></div>
+    <video id="scanner-video" style="width:100%;border-radius:10px;margin-bottom:12px;background:#000;" muted playsinline></video>
     <div id="scanner-status" style="text-align:center;font-size:14px;color:var(--text-light);padding:8px 0;"></div>
     <div id="scanner-result" style="display:none;">
       <div class="entry-item" style="margin-bottom:12px;" id="scanner-product-info"></div>
@@ -1363,7 +1359,8 @@ function renderHistory() {
 }
 
 // ---- Barcode Scanner ----
-let html5Scanner = null;
+let scannerStream = null;
+let scannerInterval = null;
 let scannedProduct = null;
 
 function openScanner() {
@@ -1372,56 +1369,73 @@ function openScanner() {
   document.getElementById('scanner-modal').classList.add('open');
   scannedProduct = null;
 
-  if (typeof Html5Qrcode === 'undefined') {
-    document.getElementById('scanner-status').textContent = 'Scanner library failed to load. Check your connection and try again.';
+  const statusEl = document.getElementById('scanner-status');
+
+  if (!('BarcodeDetector' in window)) {
+    statusEl.textContent = 'Barcode scanning is not supported in this browser. Try Chrome or Safari 17.2+.';
     return;
   }
 
-  const statusEl = document.getElementById('scanner-status');
   statusEl.textContent = 'Starting camera...';
-  setTimeout(async () => {
-    try {
-      statusEl.textContent = 'Starting camera...';
-      html5Scanner = new Html5Qrcode('scanner-reader');
-      const cameras = await Html5Qrcode.getCameras();
-      statusEl.textContent = `Found ${cameras.length} camera(s). Opening...`;
+  startNativeScanner(statusEl);
+}
 
-      if (cameras.length === 0) {
-        statusEl.textContent = 'No cameras found on this device.';
-        return;
+async function startNativeScanner(statusEl) {
+  try {
+    scannerStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+
+    const video = document.getElementById('scanner-video');
+    video.srcObject = scannerStream;
+    video.setAttribute('playsinline', 'true');
+    await video.play();
+
+    statusEl.textContent = 'Point your camera at a barcode...';
+
+    const detector = new BarcodeDetector({
+      formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128']
+    });
+
+    scannerInterval = setInterval(async () => {
+      try {
+        const barcodes = await detector.detect(video);
+        if (barcodes.length > 0) {
+          clearInterval(scannerInterval);
+          scannerInterval = null;
+          onBarcodeScanned(barcodes[0].rawValue);
+        }
+      } catch (e) {
+        // Frame not ready, ignore
       }
-
-      // Prefer back camera
-      const backCam = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('rear'));
-      const cameraId = backCam ? backCam.id : cameras[cameras.length - 1].id;
-
-      await html5Scanner.start(
-        cameraId,
-        { fps: 10, qrbox: { width: 250, height: 150 } },
-        onBarcodeScanned,
-        () => {}
-      );
-      statusEl.textContent = 'Point your camera at a barcode...';
-    } catch (err) {
-      statusEl.textContent = 'Error: ' + (err.message || err);
-    }
-  }, 300);
+    }, 200);
+  } catch (err) {
+    statusEl.textContent = 'Camera error: ' + (err.message || err);
+  }
 }
 
 function closeScanner() {
-  if (html5Scanner) {
-    html5Scanner.stop().catch(() => {});
-    html5Scanner.clear();
-    html5Scanner = null;
+  if (scannerInterval) {
+    clearInterval(scannerInterval);
+    scannerInterval = null;
   }
+  if (scannerStream) {
+    scannerStream.getTracks().forEach(t => t.stop());
+    scannerStream = null;
+  }
+  const video = document.getElementById('scanner-video');
+  if (video) video.srcObject = null;
   document.getElementById('scanner-modal').classList.remove('open');
 }
 
 async function onBarcodeScanned(barcode) {
-  // Stop scanning
-  if (html5Scanner) {
-    html5Scanner.stop().catch(() => {});
+  // Stop scanning but keep modal open
+  if (scannerStream) {
+    scannerStream.getTracks().forEach(t => t.stop());
+    scannerStream = null;
   }
+  const video = document.getElementById('scanner-video');
+  if (video) video.srcObject = null;
 
   document.getElementById('scanner-status').textContent = `Barcode: ${barcode}. Looking up product...`;
 
@@ -1521,7 +1535,7 @@ document.getElementById('food-modal').addEventListener('click', e => { if (e.tar
 document.getElementById('preset-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closePresetModal(); });
 document.getElementById('weighin-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeWeighInModal(); });
 document.getElementById('scanner-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeScanner(); });
-document.getElementById('scanner-servings').addEventListener('keydown', e => { if (e.key === 'Enter') addScannedFood(); });
+document.getElementById('scanner-servings')?.addEventListener('keydown', e => { if (e.key === 'Enter') addScannedFood(); });
 document.getElementById('weighin-weight').addEventListener('keydown', e => { if (e.key === 'Enter') saveWeighIn(); });
 
 // ---- Calculator ----
@@ -1716,6 +1730,5 @@ if (pb.authStore.isValid) {
   onLoginSuccess();
 }
 </script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" async></script>
 </body>
 </html>
