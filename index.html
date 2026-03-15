@@ -1425,11 +1425,13 @@ async function openScanner() {
 }
 
 function closeScanner() {
-  if (html5Scanner) {
-    html5Scanner.stop().catch(() => {});
-    html5Scanner.clear();
-    html5Scanner = null;
-  }
+  try {
+    if (html5Scanner) {
+      html5Scanner.stop().catch(() => {});
+      try { html5Scanner.clear(); } catch(e) {}
+      html5Scanner = null;
+    }
+  } catch(e) {}
   document.getElementById('scanner-modal').classList.remove('open');
 }
 
