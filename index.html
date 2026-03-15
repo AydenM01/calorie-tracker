@@ -457,6 +457,27 @@
   .pace-card .pace-date { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 4px; }
   .pace-card.pace-recommended .pace-label::after { content: ' (Recommended)'; font-weight: 400; font-size: 12px; color: var(--primary); }
   .pace-card.pace-selected { border-color: var(--primary); background: var(--primary-light); }
+  /* Preference chips */
+  .pref-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .pref-chip {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 20px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text);
+  }
+  .pref-chip:active { transform: scale(0.96); }
+  .pref-chip.selected { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+
   /* Meal cards */
   .meal-filter {
     background: var(--border);
@@ -886,13 +907,60 @@
     <div class="summary-card" style="margin-bottom:12px;">
       <h3 class="calc-q">Food Preferences</h3>
       <p class="calc-sub">Help us suggest meals you'll actually enjoy</p>
-      <label>What foods do you like?</label>
-      <input type="text" id="pref-likes" placeholder="e.g. chicken, pasta, rice, salads">
-      <label>Any allergies or restrictions?</label>
-      <input type="text" id="pref-allergies" placeholder="e.g. gluten-free, nut allergy, vegetarian">
-      <label>Favorite cuisines?</label>
-      <input type="text" id="pref-cuisines" placeholder="e.g. Mexican, Asian, Italian, American">
-      <button class="btn-add" style="width:100%;padding:14px;" onclick="saveNutritionPrefs()">Save Preferences</button>
+
+      <label>Diet</label>
+      <div class="pref-chips" id="pref-diet-chips">
+        <button class="pref-chip" data-val="No restrictions">No restrictions</button>
+        <button class="pref-chip" data-val="Vegetarian">Vegetarian</button>
+        <button class="pref-chip" data-val="Vegan">Vegan</button>
+        <button class="pref-chip" data-val="Pescatarian">Pescatarian</button>
+        <button class="pref-chip" data-val="Keto">Keto</button>
+        <button class="pref-chip" data-val="Paleo">Paleo</button>
+        <button class="pref-chip" data-val="Low carb">Low carb</button>
+        <button class="pref-chip" data-val="Mediterranean">Mediterranean</button>
+      </div>
+
+      <label>Allergies</label>
+      <div class="pref-chips" id="pref-allergy-chips">
+        <button class="pref-chip" data-val="None">None</button>
+        <button class="pref-chip" data-val="Gluten">Gluten</button>
+        <button class="pref-chip" data-val="Dairy">Dairy</button>
+        <button class="pref-chip" data-val="Nuts">Nuts</button>
+        <button class="pref-chip" data-val="Eggs">Eggs</button>
+        <button class="pref-chip" data-val="Soy">Soy</button>
+        <button class="pref-chip" data-val="Shellfish">Shellfish</button>
+        <button class="pref-chip" data-val="Fish">Fish</button>
+      </div>
+
+      <label>Proteins you enjoy</label>
+      <div class="pref-chips" id="pref-protein-chips">
+        <button class="pref-chip" data-val="Chicken">Chicken</button>
+        <button class="pref-chip" data-val="Beef">Beef</button>
+        <button class="pref-chip" data-val="Turkey">Turkey</button>
+        <button class="pref-chip" data-val="Pork">Pork</button>
+        <button class="pref-chip" data-val="Fish">Fish</button>
+        <button class="pref-chip" data-val="Shrimp">Shrimp</button>
+        <button class="pref-chip" data-val="Tofu">Tofu</button>
+        <button class="pref-chip" data-val="Eggs">Eggs</button>
+        <button class="pref-chip" data-val="Beans">Beans</button>
+        <button class="pref-chip" data-val="Greek yogurt">Greek yogurt</button>
+      </div>
+
+      <label>Favorite cuisines</label>
+      <div class="pref-chips" id="pref-cuisine-chips">
+        <button class="pref-chip" data-val="American">American</button>
+        <button class="pref-chip" data-val="Mexican">Mexican</button>
+        <button class="pref-chip" data-val="Italian">Italian</button>
+        <button class="pref-chip" data-val="Chinese">Chinese</button>
+        <button class="pref-chip" data-val="Japanese">Japanese</button>
+        <button class="pref-chip" data-val="Korean">Korean</button>
+        <button class="pref-chip" data-val="Thai">Thai</button>
+        <button class="pref-chip" data-val="Indian">Indian</button>
+        <button class="pref-chip" data-val="Mediterranean">Mediterranean</button>
+        <button class="pref-chip" data-val="Southern">Southern</button>
+      </div>
+
+      <button class="btn-add" style="width:100%;padding:14px;margin-top:8px;" onclick="saveNutritionPrefs()">Save Preferences</button>
     </div>
   </div>
 
@@ -1172,9 +1240,10 @@ async function loadSettings() {
         userSettings.profile_age = p.profile_age || null;
         userSettings.profile_height_ft = p.profile_height_ft || null;
         userSettings.profile_height_in = p.profile_height_in || null;
-        userSettings.pref_likes = p.pref_likes || '';
-        userSettings.pref_allergies = p.pref_allergies || '';
-        userSettings.pref_cuisines = p.pref_cuisines || '';
+        userSettings.pref_diet = p.pref_diet || [];
+        userSettings.pref_allergies = p.pref_allergies || [];
+        userSettings.pref_proteins = p.pref_proteins || [];
+        userSettings.pref_cuisines = p.pref_cuisines || [];
       }
     }
   } catch (e) {
@@ -1200,9 +1269,10 @@ async function saveSettingsToServer() {
       profile_age: userSettings.profile_age || null,
       profile_height_ft: userSettings.profile_height_ft || null,
       profile_height_in: userSettings.profile_height_in || null,
-      pref_likes: userSettings.pref_likes || '',
-      pref_allergies: userSettings.pref_allergies || '',
-      pref_cuisines: userSettings.pref_cuisines || '',
+      pref_diet: userSettings.pref_diet || [],
+      pref_allergies: userSettings.pref_allergies || [],
+      pref_proteins: userSettings.pref_proteins || [],
+      pref_cuisines: userSettings.pref_cuisines || [],
     },
   };
   try {
@@ -1918,25 +1988,58 @@ document.getElementById('weighin-weight').addEventListener('keydown', e => { if 
 // ---- Nutritionist ----
 let cachedMeals = [];
 
+// Chip toggle
+document.addEventListener('click', e => {
+  if (!e.target.classList.contains('pref-chip')) return;
+  const parent = e.target.parentElement;
+  const val = e.target.dataset.val;
+  // "None" / "No restrictions" are exclusive — deselect others
+  if (val === 'None' || val === 'No restrictions') {
+    parent.querySelectorAll('.pref-chip').forEach(c => c.classList.remove('selected'));
+    e.target.classList.add('selected');
+  } else {
+    // Deselect "None"/"No restrictions" if selecting something else
+    parent.querySelectorAll('.pref-chip').forEach(c => {
+      if (c.dataset.val === 'None' || c.dataset.val === 'No restrictions') c.classList.remove('selected');
+    });
+    e.target.classList.toggle('selected');
+  }
+});
+
+function getChipValues(containerId) {
+  return Array.from(document.querySelectorAll(`#${containerId} .pref-chip.selected`)).map(c => c.dataset.val);
+}
+
+function setChipValues(containerId, values) {
+  if (!values || !values.length) return;
+  document.querySelectorAll(`#${containerId} .pref-chip`).forEach(c => {
+    c.classList.toggle('selected', values.includes(c.dataset.val));
+  });
+}
+
 function showNutritionOnboarding() {
   document.getElementById('nutrition-onboarding').style.display = 'block';
   document.getElementById('nutrition-meals').style.display = 'none';
   document.getElementById('nutrition-loading').style.display = 'none';
-  document.getElementById('pref-likes').value = userSettings.pref_likes || '';
-  document.getElementById('pref-allergies').value = userSettings.pref_allergies || '';
-  document.getElementById('pref-cuisines').value = userSettings.pref_cuisines || '';
+  setChipValues('pref-diet-chips', userSettings.pref_diet || []);
+  setChipValues('pref-allergy-chips', userSettings.pref_allergies || []);
+  setChipValues('pref-protein-chips', userSettings.pref_proteins || []);
+  setChipValues('pref-cuisine-chips', userSettings.pref_cuisines || []);
 }
 
 async function saveNutritionPrefs() {
-  userSettings.pref_likes = document.getElementById('pref-likes').value.trim();
-  userSettings.pref_allergies = document.getElementById('pref-allergies').value.trim();
-  userSettings.pref_cuisines = document.getElementById('pref-cuisines').value.trim();
+  userSettings.pref_diet = getChipValues('pref-diet-chips');
+  userSettings.pref_allergies = getChipValues('pref-allergy-chips');
+  userSettings.pref_proteins = getChipValues('pref-protein-chips');
+  userSettings.pref_cuisines = getChipValues('pref-cuisine-chips');
   await saveSettingsToServer();
   generateMeals();
 }
 
 function initNutritionTab() {
-  if (!userSettings.pref_likes && !userSettings.pref_allergies && !userSettings.pref_cuisines) {
+  const hasPrefs = (userSettings.pref_diet && userSettings.pref_diet.length) ||
+                   (userSettings.pref_proteins && userSettings.pref_proteins.length);
+  if (!hasPrefs) {
     showNutritionOnboarding();
   } else if (cachedMeals.length > 0) {
     showMealCards();
@@ -1979,9 +2082,9 @@ async function generateMeals() {
         remaining_carbs: rem.carbs,
         remaining_fat: rem.fat,
         meal_type: 'any',
-        preferences: userSettings.pref_likes || '',
-        allergies: userSettings.pref_allergies || '',
-        cuisines: userSettings.pref_cuisines || '',
+        preferences: (userSettings.pref_diet || []).concat(userSettings.pref_proteins || []).join(', '),
+        allergies: (userSettings.pref_allergies || []).filter(a => a !== 'None').join(', '),
+        cuisines: (userSettings.pref_cuisines || []).join(', '),
       }),
     });
 
