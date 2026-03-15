@@ -366,6 +366,27 @@
   .calc-rec-label { font-size: 15px; font-weight: 500; }
   .calc-rec-value { font-size: 20px; font-weight: 700; }
   .calc-rec-explain { font-size: 12px; color: var(--text-light); margin-top: 4px; line-height: 1.4; }
+  .pace-card {
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    text-align: left;
+    width: 100%;
+    font-family: inherit;
+    color: var(--text);
+  }
+  .pace-card:active, .pace-card:hover { border-color: var(--primary); background: var(--primary-light); }
+  .pace-card .pace-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .pace-card .pace-label { font-size: 14px; font-weight: 700; }
+  .pace-card .pace-cals { font-size: 15px; font-weight: 700; color: var(--primary); }
+  .pace-card .pace-detail { font-size: 12px; color: var(--text-light); line-height: 1.4; }
+  .pace-card .pace-date { font-size: 13px; font-weight: 600; color: var(--text); margin-top: 4px; }
+  .pace-card.pace-recommended { border-color: var(--primary); }
+  .pace-card.pace-recommended .pace-label::after { content: ' (Recommended)'; font-weight: 400; font-size: 12px; color: var(--primary); }
   .calc-restart {
     width: 100%;
     margin-top: 10px;
@@ -596,29 +617,21 @@
     </div>
 
     <div class="summary-card" style="margin-bottom:12px;">
-      <h3 class="calc-q">Recommended Goals</h3>
+      <h3 class="calc-q">Choose Your Pace</h3>
+      <p class="calc-sub" id="res-pace-sub"></p>
+      <div id="pace-options"></div>
+    </div>
+
+    <div class="summary-card" style="margin-bottom:12px;">
       <div class="calc-rec">
         <div class="calc-rec-row">
-          <span class="calc-rec-label">Daily Calories</span>
-          <span class="calc-rec-value" id="res-cal" style="color:var(--primary);">--</span>
-        </div>
-        <div class="calc-rec-explain" id="res-cal-explain"></div>
-        <div class="calc-rec-row" style="margin-top:12px;">
           <span class="calc-rec-label">Daily Water</span>
           <span class="calc-rec-value" id="res-water" style="color:var(--water);">--</span>
         </div>
         <div class="calc-rec-explain" id="res-water-explain"></div>
-        <div id="res-goal-date-wrap" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:none;">
-          <div class="calc-rec-row">
-            <span class="calc-rec-label">Goal Date</span>
-            <span class="calc-rec-value" id="res-goal-date" style="color:var(--text);font-size:17px;">--</span>
-          </div>
-          <div class="calc-rec-explain" id="res-goal-date-explain"></div>
-        </div>
       </div>
     </div>
 
-    <button class="btn-add" style="width:100%;padding:14px;font-size:15px;" onclick="applyCalcGoals()">Apply These Goals</button>
     <button class="calc-restart" onclick="resetCalc()">Start Over</button>
   </div>
 </div>
@@ -1226,34 +1239,7 @@ function calcCompute() {
   // TDEE
   const tdee = bmr * activity;
 
-  // Calorie goal based on weight goal
-  let calGoal;
-  let calExplain;
-  const diff = weightLbs - goalWeightLbs;
-  if (diff > 5) {
-    // Lose weight: 500 cal deficit = ~1 lb/week, cap at 1000 deficit
-    const deficit = Math.min(Math.round(diff * 3.5), 1000); // scale deficit
-    const deficitClamped = Math.max(250, Math.min(deficit, 1000));
-    calGoal = Math.round(tdee - deficitClamped);
-    const lbsPerWeek = (deficitClamped / 500).toFixed(1);
-    calExplain = `${deficitClamped} cal/day deficit from your TDEE (${Math.round(tdee)}). ` +
-      `Projected loss: ~${lbsPerWeek} lb/week. Minimum safe intake: ${sex === 'male' ? '1,500' : '1,200'} cal/day.`;
-    // Enforce minimums
-    const minCal = sex === 'male' ? 1500 : 1200;
-    if (calGoal < minCal) calGoal = minCal;
-  } else if (diff < -5) {
-    // Gain weight: 300-500 surplus
-    const surplus = Math.min(Math.round(Math.abs(diff) * 3), 500);
-    calGoal = Math.round(tdee + surplus);
-    calExplain = `${surplus} cal/day surplus above your TDEE (${Math.round(tdee)}) for healthy weight gain.`;
-  } else {
-    // Maintain
-    calGoal = Math.round(tdee);
-    calExplain = `Your goal weight is close to your current weight. This is your maintenance level (TDEE).`;
-  }
-
-  // Water: 0.5 oz per lb of body weight, add 12 oz per 30 min exercise
-  // Simplified: base on weight, adjust for activity
+  // Water recommendation
   let waterOz = Math.round(weightLbs * 0.5);
   let waterExtra = 0;
   if (activity >= 1.55) waterExtra = 16;
@@ -1263,55 +1249,96 @@ function calcCompute() {
   const waterExplain = `Based on 0.5 oz per lb of body weight (${Math.round(weightLbs * 0.5)} oz)` +
     (waterExtra > 0 ? ` + ${waterExtra} oz for exercise.` : '.');
 
-  // Goal date calculation
-  let goalDateStr = null;
-  let weeksToGoal = null;
-  const goalDateWrap = document.getElementById('res-goal-date-wrap');
-  if (diff > 5) {
-    // Losing weight
-    const deficitClamped2 = Math.max(250, Math.min(Math.round(diff * 3.5), 1000));
-    const lbsPerWeek2 = deficitClamped2 / 500;
-    weeksToGoal = Math.ceil(diff / lbsPerWeek2);
-    const goalDate = new Date();
-    goalDate.setDate(goalDate.getDate() + weeksToGoal * 7);
-    goalDateStr = goalDate.toISOString().split('T')[0];
-    document.getElementById('res-goal-date').textContent = goalDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    document.getElementById('res-goal-date-explain').textContent = `~${weeksToGoal} weeks to lose ${Math.round(diff)} lbs at your recommended pace.`;
-    goalDateWrap.style.display = 'block';
-  } else if (diff < -5) {
-    // Gaining weight
-    const surplus2 = Math.min(Math.round(Math.abs(diff) * 3), 500);
-    const lbsPerWeekGain = surplus2 / 500;
-    weeksToGoal = Math.ceil(Math.abs(diff) / lbsPerWeekGain);
-    const goalDate = new Date();
-    goalDate.setDate(goalDate.getDate() + weeksToGoal * 7);
-    goalDateStr = goalDate.toISOString().split('T')[0];
-    document.getElementById('res-goal-date').textContent = goalDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    document.getElementById('res-goal-date-explain').textContent = `~${weeksToGoal} weeks to gain ${Math.round(Math.abs(diff))} lbs at your recommended pace.`;
-    goalDateWrap.style.display = 'block';
-  } else {
-    goalDateWrap.style.display = 'none';
-  }
-
-  // Store for apply
-  calcData.recCalGoal = calGoal;
+  // Store water for all options
   calcData.recWaterGoal = waterOz;
-  calcData.goalDate = goalDateStr;
   calcData.goalWeightLbs = goalWeightLbs;
   calcData.currentWeightLbs = weightLbs;
+  calcData.tdee = tdee;
+  calcData.sex = sex;
 
-  // Display
+  // Generate pace options
+  const diff = weightLbs - goalWeightLbs;
+  const minCal = sex === 'male' ? 1500 : 1200;
+  const paceEl = document.getElementById('pace-options');
+  const paceSub = document.getElementById('res-pace-sub');
+
+  if (Math.abs(diff) <= 5) {
+    // Maintain
+    paceSub.textContent = `You're close to your goal weight. Here's your maintenance plan.`;
+    const calGoal = Math.round(tdee);
+    paceEl.innerHTML = `
+      <button class="pace-card pace-recommended" onclick="selectPace(${calGoal}, null, ${goalWeightLbs})">
+        <div class="pace-top"><span class="pace-label">Maintain</span><span class="pace-cals">${calGoal} cal/day</span></div>
+        <div class="pace-detail">Eat at your TDEE to maintain your current weight.</div>
+      </button>`;
+  } else if (diff > 5) {
+    // Weight loss options
+    paceSub.textContent = `${Math.round(diff)} lbs to lose. Pick a pace that fits your lifestyle.`;
+    const deficits = [
+      { label: 'Relaxed', deficit: 250, desc: '~0.5 lb/week', rec: false },
+      { label: 'Moderate', deficit: 500, desc: '~1 lb/week', rec: true },
+      { label: 'Aggressive', deficit: 750, desc: '~1.5 lb/week', rec: false },
+      { label: 'Intense', deficit: 1000, desc: '~2 lb/week', rec: false },
+    ];
+    paceEl.innerHTML = deficits.map(p => {
+      let cal = Math.round(tdee - p.deficit);
+      if (cal < minCal) cal = minCal;
+      const actualDeficit = Math.round(tdee - cal);
+      const lbsPerWeek = actualDeficit / 500;
+      const weeks = Math.ceil(diff / lbsPerWeek);
+      const goalDate = new Date();
+      goalDate.setDate(goalDate.getDate() + weeks * 7);
+      const dateFmt = goalDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const dateStr = goalDate.toISOString().split('T')[0];
+      const recClass = p.rec ? ' pace-recommended' : '';
+      return `<button class="pace-card${recClass}" onclick="selectPace(${cal}, '${dateStr}', ${goalWeightLbs})">
+        <div class="pace-top"><span class="pace-label">${p.label}</span><span class="pace-cals">${cal} cal/day</span></div>
+        <div class="pace-detail">${p.desc} &middot; ${actualDeficit} cal deficit from TDEE</div>
+        <div class="pace-date">Goal by ${dateFmt} (~${weeks} weeks)</div>
+      </button>`;
+    }).join('');
+  } else {
+    // Weight gain options
+    paceSub.textContent = `${Math.round(Math.abs(diff))} lbs to gain. Pick a pace.`;
+    const surpluses = [
+      { label: 'Lean Bulk', surplus: 250, desc: '~0.5 lb/week', rec: true },
+      { label: 'Moderate Bulk', surplus: 500, desc: '~1 lb/week', rec: false },
+      { label: 'Aggressive Bulk', surplus: 750, desc: '~1.5 lb/week', rec: false },
+    ];
+    paceEl.innerHTML = surpluses.map(p => {
+      const cal = Math.round(tdee + p.surplus);
+      const lbsPerWeek = p.surplus / 500;
+      const weeks = Math.ceil(Math.abs(diff) / lbsPerWeek);
+      const goalDate = new Date();
+      goalDate.setDate(goalDate.getDate() + weeks * 7);
+      const dateFmt = goalDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const dateStr = goalDate.toISOString().split('T')[0];
+      const recClass = p.rec ? ' pace-recommended' : '';
+      return `<button class="pace-card${recClass}" onclick="selectPace(${cal}, '${dateStr}', ${goalWeightLbs})">
+        <div class="pace-top"><span class="pace-label">${p.label}</span><span class="pace-cals">${cal} cal/day</span></div>
+        <div class="pace-detail">${p.desc} &middot; ${p.surplus} cal surplus above TDEE</div>
+        <div class="pace-date">Goal by ${dateFmt} (~${weeks} weeks)</div>
+      </button>`;
+    }).join('');
+  }
+
+  // Display stats
   document.getElementById('res-bmi').textContent = bmi.toFixed(1);
   document.getElementById('res-bmi-cat').textContent = bmiCat;
   document.getElementById('res-bmr').textContent = Math.round(bmr);
   document.getElementById('res-tdee').textContent = Math.round(tdee);
-  document.getElementById('res-cal').textContent = calGoal + ' cal';
-  document.getElementById('res-cal-explain').textContent = calExplain;
   document.getElementById('res-water').textContent = waterOz + ' oz';
   document.getElementById('res-water-explain').textContent = waterExplain;
 
   document.querySelectorAll('.calc-step').forEach(s => s.style.display = 'none');
   document.getElementById('calc-results').style.display = 'block';
+}
+
+function selectPace(calGoal, goalDate, goalWeight) {
+  calcData.recCalGoal = calGoal;
+  calcData.goalDate = goalDate;
+  calcData.goalWeightLbs = goalWeight;
+  applyCalcGoals();
 }
 
 async function applyCalcGoals() {
