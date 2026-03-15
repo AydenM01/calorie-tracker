@@ -96,6 +96,7 @@ async function runSetup() {
     return;
   }
 
+  // PocketBase v0.25+ field format: options are top-level on each field
   const collections = [
     {
       name: 'food_entries',
@@ -106,9 +107,9 @@ async function runSetup() {
       updateRule: '@request.auth.id = user',
       deleteRule: '@request.auth.id = user',
       fields: [
-        { name: 'user', type: 'relation', required: true, options: { collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 } },
+        { name: 'user', type: 'relation', required: true, collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 },
         { name: 'name', type: 'text', required: true },
-        { name: 'calories', type: 'number', required: true, options: { min: 0 } },
+        { name: 'calories', type: 'number', required: true, min: 0 },
         { name: 'date', type: 'text', required: true },
         { name: 'time', type: 'text', required: false },
       ],
@@ -122,8 +123,8 @@ async function runSetup() {
       updateRule: '@request.auth.id = user',
       deleteRule: '@request.auth.id = user',
       fields: [
-        { name: 'user', type: 'relation', required: true, options: { collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 } },
-        { name: 'oz', type: 'number', required: true, options: { min: 0 } },
+        { name: 'user', type: 'relation', required: true, collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 },
+        { name: 'oz', type: 'number', required: true, min: 0 },
         { name: 'date', type: 'text', required: true },
         { name: 'time', type: 'text', required: false },
       ],
@@ -137,9 +138,9 @@ async function runSetup() {
       updateRule: '@request.auth.id = user',
       deleteRule: '@request.auth.id = user',
       fields: [
-        { name: 'user', type: 'relation', required: true, options: { collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 } },
-        { name: 'cal_goal', type: 'number', required: false, options: { min: 0 } },
-        { name: 'water_goal', type: 'number', required: false, options: { min: 0 } },
+        { name: 'user', type: 'relation', required: true, collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 },
+        { name: 'cal_goal', type: 'number', required: false, min: 0 },
+        { name: 'water_goal', type: 'number', required: false, min: 0 },
         { name: 'presets', type: 'json', required: false },
       ],
       indexes: ['CREATE UNIQUE INDEX idx_user_settings_user ON user_settings (user)'],
@@ -152,7 +153,7 @@ async function runSetup() {
       await pb.collections.create(col);
       log(`"${col.name}" created!`, 'ok');
     } catch (e) {
-      const msg = e.response?.message || e.message || e;
+      const msg = e.response?.data ? JSON.stringify(e.response.data) : (e.response?.message || e.message || e);
       if (msg.toString().includes('already exists')) {
         log(`"${col.name}" already exists, skipping.`, 'ok');
       } else {
