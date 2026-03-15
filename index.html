@@ -323,6 +323,27 @@
   }
   .user-bar a { color: var(--danger); cursor: pointer; text-decoration: none; font-weight: 600; }
 
+  /* Macro bar */
+  .macro-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .macro-item {
+    flex: 1;
+    background: var(--card);
+    border-radius: 10px;
+    padding: 10px 8px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .macro-val { display: block; font-size: 18px; font-weight: 700; }
+  .macro-label { display: block; font-size: 11px; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.3px; }
+  #macro-protein .macro-val, .macro-p { color: #e07b4c; }
+  #macro-carbs .macro-val, .macro-c { color: #d4a843; }
+  #macro-fat .macro-val, .macro-f { color: #7b8fe0; }
+  .food-macros { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+
   /* Goal banner */
   .goal-banner {
     background: var(--primary-light);
@@ -446,6 +467,11 @@
       <div class="goal">of <span id="water-goal-display">64</span> oz goal</div>
       <div class="progress-wrap"><div class="progress-bar"><div class="fill" id="water-bar"></div></div></div>
     </div>
+  </div>
+  <div class="macro-bar" id="macro-bar">
+    <div class="macro-item"><span class="macro-val" id="macro-protein">0</span><span class="macro-label">Protein</span></div>
+    <div class="macro-item"><span class="macro-val" id="macro-carbs">0</span><span class="macro-label">Carbs</span></div>
+    <div class="macro-item"><span class="macro-val" id="macro-fat">0</span><span class="macro-label">Fat</span></div>
   </div>
 
   <div id="goal-banner" style="display:none;"></div>
@@ -698,6 +724,11 @@
     <input type="text" id="food-name" placeholder="e.g. Chicken salad" autocomplete="off">
     <label>Calories</label>
     <input type="number" id="food-cal" placeholder="e.g. 350" inputmode="numeric">
+    <div class="settings-row">
+      <div><label>Protein (g)</label><input type="number" id="food-protein" placeholder="0" inputmode="numeric"></div>
+      <div><label>Carbs (g)</label><input type="number" id="food-carbs" placeholder="0" inputmode="numeric"></div>
+      <div><label>Fat (g)</label><input type="number" id="food-fat" placeholder="0" inputmode="numeric"></div>
+    </div>
     <div class="modal-btns">
       <button class="cancel" onclick="closeFoodModal()">Cancel</button>
       <button class="save" onclick="saveFood()">Add</button>
@@ -713,6 +744,11 @@
     <input type="text" id="preset-name" placeholder="e.g. Morning coffee" autocomplete="off">
     <label>Calories</label>
     <input type="number" id="preset-cal" placeholder="e.g. 120" inputmode="numeric">
+    <div class="settings-row">
+      <div><label>Protein (g)</label><input type="number" id="preset-protein" placeholder="0" inputmode="numeric"></div>
+      <div><label>Carbs (g)</label><input type="number" id="preset-carbs" placeholder="0" inputmode="numeric"></div>
+      <div><label>Fat (g)</label><input type="number" id="preset-fat" placeholder="0" inputmode="numeric"></div>
+    </div>
     <div class="modal-btns">
       <button class="cancel" onclick="closePresetModal()">Cancel</button>
       <button class="save" onclick="savePreset()">Save</button>
@@ -966,6 +1002,9 @@ function render() {
   document.getElementById('date-display').textContent = formatDate(currentDate);
 
   const calTotal = foods.reduce((s, f) => s + (f.calories || 0), 0);
+  const proteinTotal = foods.reduce((s, f) => s + (f.protein || 0), 0);
+  const carbsTotal = foods.reduce((s, f) => s + (f.carbs || 0), 0);
+  const fatTotal = foods.reduce((s, f) => s + (f.fat || 0), 0);
   const waterTotal = waters.reduce((s, w) => s + (w.oz || 0), 0);
 
   document.getElementById('cal-total').textContent = calTotal;
@@ -976,17 +1015,22 @@ function render() {
   document.getElementById('water-goal-display').textContent = userSettings.water_goal;
   document.getElementById('water-bar').style.width = Math.min(100, (waterTotal / userSettings.water_goal) * 100) + '%';
 
+  document.getElementById('macro-protein').textContent = Math.round(proteinTotal) + 'g';
+  document.getElementById('macro-carbs').textContent = Math.round(carbsTotal) + 'g';
+  document.getElementById('macro-fat').textContent = Math.round(fatTotal) + 'g';
+
   // Food list
   const foodList = document.getElementById('food-list');
   if (foods.length === 0) {
     foodList.innerHTML = '<div class="empty">No food logged yet</div>';
   } else {
-    foodList.innerHTML = foods.map(f => `
-      <li class="entry-item">
-        <div class="info"><div class="name">${esc(f.name)}</div><div class="time">${f.time || ''}</div></div>
+    foodList.innerHTML = foods.map(f => {
+      const macros = [f.protein && `P:${Math.round(f.protein)}`, f.carbs && `C:${Math.round(f.carbs)}`, f.fat && `F:${Math.round(f.fat)}`].filter(Boolean).join(' ');
+      return `<li class="entry-item">
+        <div class="info"><div class="name">${esc(f.name)}</div><div class="time">${f.time || ''}${macros ? ' &middot; ' + macros + 'g' : ''}</div></div>
         <div class="right"><span class="amount">${f.calories} cal</span><button class="btn-del" onclick="deleteFood('${f.id}')">&times;</button></div>
-      </li>
-    `).join('');
+      </li>`;
+    }).join('');
   }
 
   // Water list
@@ -1199,6 +1243,9 @@ async function deleteWater(id) {
 function openFoodModal() {
   document.getElementById('food-name').value = '';
   document.getElementById('food-cal').value = '';
+  document.getElementById('food-protein').value = '';
+  document.getElementById('food-carbs').value = '';
+  document.getElementById('food-fat').value = '';
   document.getElementById('food-modal').classList.add('open');
   document.getElementById('food-name').focus();
 }
@@ -1211,11 +1258,15 @@ async function saveFood() {
   const name = document.getElementById('food-name').value.trim();
   const cal = parseInt(document.getElementById('food-cal').value);
   if (!name || isNaN(cal) || cal < 0) return;
+  const protein = parseFloat(document.getElementById('food-protein').value) || 0;
+  const carbs = parseFloat(document.getElementById('food-carbs').value) || 0;
+  const fat = parseFloat(document.getElementById('food-fat').value) || 0;
   try {
     await pb.collection('food_entries').create({
       user: userId(),
       name,
       calories: cal,
+      protein, carbs, fat,
       date: currentDate,
       time: nowTime(),
     });
@@ -1233,12 +1284,15 @@ async function deleteFood(id) {
   } catch (e) { console.error('Failed to delete food', e); }
 }
 
-async function addFromPreset(name, cal) {
+async function addFromPreset(name, cal, protein, carbs, fat) {
   try {
     await pb.collection('food_entries').create({
       user: userId(),
       name,
       calories: cal,
+      protein: protein || 0,
+      carbs: carbs || 0,
+      fat: fat || 0,
       date: currentDate,
       time: nowTime(),
     });
@@ -1255,19 +1309,20 @@ function renderPresets() {
     el.innerHTML = '<div class="empty">No presets yet</div>';
     return;
   }
-  el.innerHTML = userSettings.presets.map((p, i) => `
-    <div class="entry-item">
-      <div class="info"><div class="name">${esc(p.name)}</div><div class="time">${p.cal} cal</div></div>
+  el.innerHTML = userSettings.presets.map((p, i) => {
+    const macros = [p.protein && `P:${p.protein}`, p.carbs && `C:${p.carbs}`, p.fat && `F:${p.fat}`].filter(Boolean).join(' ');
+    return `<div class="entry-item">
+      <div class="info"><div class="name">${esc(p.name)}</div><div class="time">${p.cal} cal${macros ? ' &middot; ' + macros + 'g' : ''}</div></div>
       <div class="right"><button class="btn-del" onclick="deletePreset(${i})">&times;</button></div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderPresetShortcuts() {
   const el = document.getElementById('preset-shortcuts');
   if (userSettings.presets.length === 0) { el.innerHTML = ''; return; }
   el.innerHTML = userSettings.presets.map(p => `
-    <button style="background:var(--primary-light);color:var(--primary);border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;" onclick="addFromPreset('${esc(p.name).replace(/'/g,"\\'")}', ${p.cal})">${esc(p.name)} (${p.cal})</button>
+    <button style="background:var(--primary-light);color:var(--primary);border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;" onclick="addFromPreset('${esc(p.name).replace(/'/g,"\\'")}', ${p.cal}, ${p.protein||0}, ${p.carbs||0}, ${p.fat||0})">${esc(p.name)} (${p.cal})</button>
   `).join('');
 }
 
@@ -1286,7 +1341,10 @@ async function savePreset() {
   const name = document.getElementById('preset-name').value.trim();
   const cal = parseInt(document.getElementById('preset-cal').value);
   if (!name || isNaN(cal) || cal < 0) return;
-  userSettings.presets.push({ name, cal });
+  const protein = parseFloat(document.getElementById('preset-protein').value) || 0;
+  const carbs = parseFloat(document.getElementById('preset-carbs').value) || 0;
+  const fat = parseFloat(document.getElementById('preset-fat').value) || 0;
+  userSettings.presets.push({ name, cal, protein, carbs, fat });
   await saveSettingsToServer();
   closePresetModal();
   render();
@@ -1338,13 +1396,17 @@ async function loadHistory() {
     ]);
 
     // Group by date
-    const calByDate = {};
-    const waterByDate = {};
-    foodRes.items.forEach(f => { calByDate[f.date] = (calByDate[f.date] || 0) + f.calories; });
+    const calByDate = {}, waterByDate = {}, pByDate = {}, cByDate = {}, fByDate = {};
+    foodRes.items.forEach(f => {
+      calByDate[f.date] = (calByDate[f.date] || 0) + f.calories;
+      pByDate[f.date] = (pByDate[f.date] || 0) + (f.protein || 0);
+      cByDate[f.date] = (cByDate[f.date] || 0) + (f.carbs || 0);
+      fByDate[f.date] = (fByDate[f.date] || 0) + (f.fat || 0);
+    });
     waterRes.items.forEach(w => { waterByDate[w.date] = (waterByDate[w.date] || 0) + w.oz; });
 
     window._historyData = dates
-      .map(ds => ({ ds, cal: calByDate[ds] || 0, water: waterByDate[ds] || 0 }))
+      .map(ds => ({ ds, cal: calByDate[ds] || 0, water: waterByDate[ds] || 0, p: Math.round(pByDate[ds] || 0), c: Math.round(cByDate[ds] || 0), f: Math.round(fByDate[ds] || 0) }))
       .filter(d => d.cal > 0 || d.water > 0);
   } catch (e) {
     console.error('Failed to load history', e);
@@ -1362,9 +1424,10 @@ function renderHistory() {
   el.innerHTML = days.map(d => `
     <div class="entry-item" style="cursor:pointer;" onclick="currentDate='${d.ds}';switchTab('track');">
       <div class="info"><div class="name">${formatDate(d.ds)}</div><div class="time">${d.ds}</div></div>
-      <div class="right" style="gap:16px;">
+      <div class="right" style="gap:8px;flex-wrap:wrap;justify-content:flex-end;">
         <span style="color:var(--primary);font-weight:600;font-size:14px;">${d.cal} cal</span>
-        <span style="color:var(--water);font-weight:600;font-size:14px;">${d.water} oz</span>
+        <span style="color:var(--water);font-weight:600;font-size:13px;">${d.water}oz</span>
+        <span style="font-size:11px;color:var(--text-light);">P:${d.p} C:${d.c} F:${d.f}</span>
       </div>
     </div>
   `).join('');
@@ -1477,18 +1540,32 @@ async function onBarcodeScanned(barcode) {
         return;
       }
 
+      // Extract macros
+      const suffix = servingDesc === '100g' ? '_100g' : '_serving';
+      const proteinPer = Math.round((nutriments['proteins' + suffix] || nutriments['proteins_serving'] || nutriments['proteins_100g'] || 0) * 10) / 10;
+      const carbsPer = Math.round((nutriments['carbohydrates' + suffix] || nutriments['carbohydrates_serving'] || nutriments['carbohydrates_100g'] || 0) * 10) / 10;
+      const fatPer = Math.round((nutriments['fat' + suffix] || nutriments['fat_serving'] || nutriments['fat_100g'] || 0) * 10) / 10;
+
       scannedProduct = {
         name: brand ? `${name} (${brand})` : name,
         calPerServing,
+        proteinPer,
+        carbsPer,
+        fatPer,
         servingDesc,
       };
 
       document.getElementById('scanner-product-info').innerHTML = `
         <div style="font-size:17px;font-weight:700;margin-bottom:4px;">${esc(scannedProduct.name)}</div>
-        <div style="font-size:14px;color:var(--text-light);">${calPerServing} cal per ${esc(servingDesc)}</div>
+        <div style="font-size:14px;color:var(--text-light);margin-bottom:6px;">${calPerServing} cal per ${esc(servingDesc)}</div>
+        <div style="display:flex;gap:12px;font-size:13px;">
+          <span style="color:#e07b4c;font-weight:600;">P: ${proteinPer}g</span>
+          <span style="color:#d4a843;font-weight:600;">C: ${carbsPer}g</span>
+          <span style="color:#7b8fe0;font-weight:600;">F: ${fatPer}g</span>
+        </div>
       `;
       document.getElementById('scanner-servings').value = '1';
-      document.getElementById('scanner-cal-total').textContent = `Total: ${calPerServing} cal`;
+      updateScannerTotals(1);
       document.getElementById('scanner-title').textContent = 'Add Food';
       document.getElementById('scanner-scan-view').style.display = 'none';
       document.getElementById('scanner-result').style.display = 'block';
@@ -1496,7 +1573,7 @@ async function onBarcodeScanned(barcode) {
       // Update total when servings change
       document.getElementById('scanner-servings').oninput = () => {
         const s = parseFloat(document.getElementById('scanner-servings').value) || 1;
-        document.getElementById('scanner-cal-total').textContent = `Total: ${Math.round(calPerServing * s)} cal`;
+        updateScannerTotals(s);
       };
     } else {
       document.getElementById('scanner-status').textContent = `Product not found for barcode ${barcode}. Try manual entry.`;
@@ -1511,10 +1588,22 @@ async function onBarcodeScanned(barcode) {
   }
 }
 
+function updateScannerTotals(s) {
+  if (!scannedProduct) return;
+  const cal = Math.round(scannedProduct.calPerServing * s);
+  const p = Math.round(scannedProduct.proteinPer * s * 10) / 10;
+  const c = Math.round(scannedProduct.carbsPer * s * 10) / 10;
+  const f = Math.round(scannedProduct.fatPer * s * 10) / 10;
+  document.getElementById('scanner-cal-total').innerHTML = `<span style="font-size:15px;">${cal} cal</span> <span style="font-size:12px;color:var(--text-light);">P:${p}g C:${c}g F:${f}g</span>`;
+}
+
 async function addScannedFood() {
   if (!scannedProduct) return;
   const servings = parseFloat(document.getElementById('scanner-servings').value) || 1;
   const totalCal = Math.round(scannedProduct.calPerServing * servings);
+  const protein = Math.round(scannedProduct.proteinPer * servings * 10) / 10;
+  const carbs = Math.round(scannedProduct.carbsPer * servings * 10) / 10;
+  const fat = Math.round(scannedProduct.fatPer * servings * 10) / 10;
   const name = servings !== 1
     ? `${scannedProduct.name} (x${servings})`
     : scannedProduct.name;
@@ -1524,6 +1613,7 @@ async function addScannedFood() {
       user: userId(),
       name,
       calories: totalCal,
+      protein, carbs, fat,
       date: currentDate,
       time: nowTime(),
     });
