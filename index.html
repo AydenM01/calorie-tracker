@@ -457,6 +457,72 @@
   .pace-card .pace-date { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 4px; }
   .pace-card.pace-recommended .pace-label::after { content: ' (Recommended)'; font-weight: 400; font-size: 12px; color: var(--primary); }
   .pace-card.pace-selected { border-color: var(--primary); background: var(--primary-light); }
+  /* Meal cards */
+  .meal-filter {
+    background: var(--border);
+    border: none;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text-light);
+    white-space: nowrap;
+  }
+  .meal-filter.active { background: var(--primary); color: #fff; }
+  .meal-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    cursor: pointer;
+  }
+  .meal-card:active { transform: scale(0.99); }
+  .meal-card .meal-type {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--primary);
+    margin-bottom: 4px;
+  }
+  .meal-card .meal-name { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .meal-card .meal-desc { font-size: 13px; color: var(--text-light); margin-bottom: 10px; }
+  .meal-card .meal-macros {
+    display: flex;
+    gap: 12px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .meal-card .meal-macros span { display: flex; align-items: center; gap: 3px; }
+  .meal-detail {
+    display: none;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .meal-detail.open { display: block; }
+  .meal-detail h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .meal-detail ul { padding-left: 18px; margin-bottom: 12px; }
+  .meal-detail li { font-size: 14px; line-height: 1.6; color: var(--text); }
+  .meal-detail ol { padding-left: 18px; margin-bottom: 14px; }
+  .meal-detail ol li { font-size: 14px; line-height: 1.6; margin-bottom: 4px; }
+  .meal-add-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .meal-add-btn:active { transform: scale(0.98); }
+
   .calc-back {
     display: inline-block;
     font-size: 14px;
@@ -809,10 +875,56 @@
   </div>
 </div>
 
+<!-- ======== NUTRITIONIST PAGE ======== -->
+<div id="page-nutrition" class="page">
+  <div class="header">
+    <h1>Meal Ideas</h1>
+  </div>
+
+  <!-- Preferences setup (shown if no preferences saved) -->
+  <div id="nutrition-onboarding" style="display:none;">
+    <div class="summary-card" style="margin-bottom:12px;">
+      <h3 class="calc-q">Food Preferences</h3>
+      <p class="calc-sub">Help us suggest meals you'll actually enjoy</p>
+      <label>What foods do you like?</label>
+      <input type="text" id="pref-likes" placeholder="e.g. chicken, pasta, rice, salads">
+      <label>Any allergies or restrictions?</label>
+      <input type="text" id="pref-allergies" placeholder="e.g. gluten-free, nut allergy, vegetarian">
+      <label>Favorite cuisines?</label>
+      <input type="text" id="pref-cuisines" placeholder="e.g. Mexican, Asian, Italian, American">
+      <button class="btn-add" style="width:100%;padding:14px;" onclick="saveNutritionPrefs()">Save Preferences</button>
+    </div>
+  </div>
+
+  <!-- Meal suggestions -->
+  <div id="nutrition-meals" style="display:none;">
+    <div id="nutrition-remaining" style="font-size:13px;color:var(--text-light);margin-bottom:12px;text-align:center;"></div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;">
+      <button class="meal-filter active" onclick="filterMeals('all')" data-filter="all">All</button>
+      <button class="meal-filter" onclick="filterMeals('breakfast')" data-filter="breakfast">Breakfast</button>
+      <button class="meal-filter" onclick="filterMeals('lunch')" data-filter="lunch">Lunch</button>
+      <button class="meal-filter" onclick="filterMeals('dinner')" data-filter="dinner">Dinner</button>
+      <button class="meal-filter" onclick="filterMeals('snack')" data-filter="snack">Snack</button>
+    </div>
+    <div id="meal-cards"></div>
+    <button class="btn-add" style="width:100%;padding:14px;margin-top:8px;" onclick="generateMeals()">Refresh Suggestions</button>
+    <button class="calc-restart" onclick="showNutritionOnboarding()">Edit Preferences</button>
+  </div>
+
+  <!-- Loading state -->
+  <div id="nutrition-loading" style="display:none;text-align:center;padding:40px 0;">
+    <div style="font-size:16px;font-weight:600;margin-bottom:8px;">Thinking up meals...</div>
+    <div style="font-size:13px;color:var(--text-light);">Based on your remaining macros and preferences</div>
+  </div>
+</div>
+
 <!-- ======== BOTTOM TABS ======== -->
 <div class="tabs" id="main-tabs" style="display:none;">
   <button class="tab-btn active" onclick="switchTab('track')" id="tab-track">
     <span class="tab-icon">&#9737;</span>Today
+  </button>
+  <button class="tab-btn" onclick="switchTab('nutrition')" id="tab-nutrition">
+    <span class="tab-icon">&#9733;</span>Meals
   </button>
   <button class="tab-btn" onclick="switchTab('calc')" id="tab-calc">
     <span class="tab-icon">&#9878;</span>Goals
@@ -1028,6 +1140,7 @@ function switchTab(name) {
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'track') loadDayData(currentDate).then(render);
   else if (name === 'history') loadHistory().then(renderHistory);
+  else if (name === 'nutrition') initNutritionTab();
   else render();
 }
 
@@ -1059,6 +1172,9 @@ async function loadSettings() {
         userSettings.profile_age = p.profile_age || null;
         userSettings.profile_height_ft = p.profile_height_ft || null;
         userSettings.profile_height_in = p.profile_height_in || null;
+        userSettings.pref_likes = p.pref_likes || '';
+        userSettings.pref_allergies = p.pref_allergies || '';
+        userSettings.pref_cuisines = p.pref_cuisines || '';
       }
     }
   } catch (e) {
@@ -1084,6 +1200,9 @@ async function saveSettingsToServer() {
       profile_age: userSettings.profile_age || null,
       profile_height_ft: userSettings.profile_height_ft || null,
       profile_height_in: userSettings.profile_height_in || null,
+      pref_likes: userSettings.pref_likes || '',
+      pref_allergies: userSettings.pref_allergies || '',
+      pref_cuisines: userSettings.pref_cuisines || '',
     },
   };
   try {
@@ -1795,6 +1914,173 @@ document.getElementById('weighin-modal').addEventListener('click', e => { if (e.
 document.getElementById('scanner-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeScanner(); });
 document.getElementById('scanner-servings')?.addEventListener('keydown', e => { if (e.key === 'Enter') addScannedFood(); });
 document.getElementById('weighin-weight').addEventListener('keydown', e => { if (e.key === 'Enter') saveWeighIn(); });
+
+// ---- Nutritionist ----
+let cachedMeals = [];
+
+function showNutritionOnboarding() {
+  document.getElementById('nutrition-onboarding').style.display = 'block';
+  document.getElementById('nutrition-meals').style.display = 'none';
+  document.getElementById('nutrition-loading').style.display = 'none';
+  document.getElementById('pref-likes').value = userSettings.pref_likes || '';
+  document.getElementById('pref-allergies').value = userSettings.pref_allergies || '';
+  document.getElementById('pref-cuisines').value = userSettings.pref_cuisines || '';
+}
+
+async function saveNutritionPrefs() {
+  userSettings.pref_likes = document.getElementById('pref-likes').value.trim();
+  userSettings.pref_allergies = document.getElementById('pref-allergies').value.trim();
+  userSettings.pref_cuisines = document.getElementById('pref-cuisines').value.trim();
+  await saveSettingsToServer();
+  generateMeals();
+}
+
+function initNutritionTab() {
+  if (!userSettings.pref_likes && !userSettings.pref_allergies && !userSettings.pref_cuisines) {
+    showNutritionOnboarding();
+  } else if (cachedMeals.length > 0) {
+    showMealCards();
+  } else {
+    generateMeals();
+  }
+}
+
+function getRemainingMacros() {
+  const foods = foodCache[currentDate] || [];
+  const calEaten = foods.reduce((s, f) => s + (f.calories || 0), 0);
+  const pEaten = foods.reduce((s, f) => s + (f.protein || 0), 0);
+  const cEaten = foods.reduce((s, f) => s + (f.carbs || 0), 0);
+  const fEaten = foods.reduce((s, f) => s + (f.fat || 0), 0);
+  return {
+    cal: Math.max(0, (userSettings.cal_goal || 2000) - calEaten),
+    protein: Math.max(0, (userSettings.protein_goal || 150) - pEaten),
+    carbs: Math.max(0, (userSettings.carbs_goal || 200) - cEaten),
+    fat: Math.max(0, (userSettings.fat_goal || 60) - fEaten),
+  };
+}
+
+async function generateMeals() {
+  document.getElementById('nutrition-onboarding').style.display = 'none';
+  document.getElementById('nutrition-meals').style.display = 'none';
+  document.getElementById('nutrition-loading').style.display = 'block';
+
+  const rem = getRemainingMacros();
+
+  try {
+    const res = await fetch('/api/nutritionist', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': pb.authStore.token,
+      },
+      body: JSON.stringify({
+        remaining_cal: rem.cal,
+        remaining_protein: rem.protein,
+        remaining_carbs: rem.carbs,
+        remaining_fat: rem.fat,
+        meal_type: 'any',
+        preferences: userSettings.pref_likes || '',
+        allergies: userSettings.pref_allergies || '',
+        cuisines: userSettings.pref_cuisines || '',
+      }),
+    });
+
+    const data = await res.json();
+    if (data.meals) {
+      cachedMeals = data.meals;
+      showMealCards();
+    } else {
+      document.getElementById('nutrition-loading').style.display = 'none';
+      document.getElementById('nutrition-meals').style.display = 'block';
+      document.getElementById('meal-cards').innerHTML = `<div class="empty">Failed to generate meals: ${data.error || 'Unknown error'}. Try again.</div>`;
+    }
+  } catch (e) {
+    document.getElementById('nutrition-loading').style.display = 'none';
+    document.getElementById('nutrition-meals').style.display = 'block';
+    document.getElementById('meal-cards').innerHTML = `<div class="empty">Network error. Check your connection.</div>`;
+  }
+}
+
+function showMealCards() {
+  document.getElementById('nutrition-loading').style.display = 'none';
+  document.getElementById('nutrition-onboarding').style.display = 'none';
+  document.getElementById('nutrition-meals').style.display = 'block';
+
+  const rem = getRemainingMacros();
+  document.getElementById('nutrition-remaining').textContent =
+    `Remaining today: ${rem.cal} cal, ${Math.round(rem.protein)}g P, ${Math.round(rem.carbs)}g C, ${Math.round(rem.fat)}g F`;
+
+  renderMealCards('all');
+}
+
+function filterMeals(type) {
+  document.querySelectorAll('.meal-filter').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.meal-filter[data-filter="${type}"]`).classList.add('active');
+  renderMealCards(type);
+}
+
+function renderMealCards(filterType) {
+  const filtered = filterType === 'all' ? cachedMeals : cachedMeals.filter(m => m.type === filterType);
+  const el = document.getElementById('meal-cards');
+
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="empty">No meals for this category. Try refreshing.</div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map((m, i) => {
+    const idx = cachedMeals.indexOf(m);
+    return `<div class="meal-card" onclick="toggleMealDetail(${idx})">
+      <div class="meal-type">${esc(m.type)}</div>
+      <div class="meal-name">${esc(m.name)}</div>
+      <div class="meal-desc">${esc(m.description || '')}</div>
+      <div class="meal-macros">
+        <span style="color:var(--primary);"><b>${m.calories}</b> cal</span>
+        <span style="color:var(--macro-p);">P: ${m.protein}g</span>
+        <span style="color:var(--macro-c);">C: ${m.carbs}g</span>
+        <span style="color:var(--macro-f);">F: ${m.fat}g</span>
+      </div>
+      <div class="meal-detail" id="meal-detail-${idx}">
+        <h4>Ingredients</h4>
+        <ul>${(m.ingredients || []).map(ing => `<li>${esc(ing)}</li>`).join('')}</ul>
+        <h4>Instructions</h4>
+        <ol>${(m.instructions || []).map(step => `<li>${esc(step)}</li>`).join('')}</ol>
+        <button class="meal-add-btn" onclick="event.stopPropagation();logMeal(${idx})">Add to Today's Log</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleMealDetail(idx) {
+  const detail = document.getElementById('meal-detail-' + idx);
+  if (detail) detail.classList.toggle('open');
+}
+
+async function logMeal(idx) {
+  const m = cachedMeals[idx];
+  if (!m) return;
+  try {
+    await pb.collection('food_entries').create({
+      user: userId(),
+      name: m.name,
+      calories: m.calories,
+      protein: m.protein || 0,
+      carbs: m.carbs || 0,
+      fat: m.fat || 0,
+      date: currentDate,
+      time: nowTime(),
+    });
+    await loadDayData(currentDate);
+    render();
+    // Update remaining display
+    const rem = getRemainingMacros();
+    document.getElementById('nutrition-remaining').textContent =
+      `Remaining today: ${rem.cal} cal, ${Math.round(rem.protein)}g P, ${Math.round(rem.carbs)}g C, ${Math.round(rem.fat)}g F`;
+    // Visual feedback
+    const btn = document.querySelector(`#meal-detail-${idx} .meal-add-btn`);
+    if (btn) { btn.textContent = 'Added!'; btn.style.background = 'var(--text-light)'; }
+  } catch (e) { console.error('Failed to log meal', e); }
+}
 
 // ---- Calculator ----
 let calcData = {};
