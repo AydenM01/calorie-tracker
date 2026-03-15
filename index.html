@@ -324,6 +324,10 @@
   }
   .user-bar a { color: var(--danger); cursor: pointer; text-decoration: none; font-weight: 600; }
 
+  /* Scanner */
+  #scanner-reader video { width: 100% !important; border-radius: 10px; }
+  #scanner-reader img { display: none; }
+
   /* Goal banner */
   .goal-banner {
     background: var(--primary-light);
@@ -721,12 +725,12 @@
   </div>
 <!-- ======== SCANNER MODAL ======== -->
 <div class="modal-overlay" id="scanner-modal">
-  <div class="modal" style="padding-top:16px;">
+  <div class="modal" style="padding-top:16px;max-height:90dvh;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <h3 style="margin:0;">Scan Barcode</h3>
       <button onclick="closeScanner()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-light);padding:4px;">&times;</button>
     </div>
-    <div id="scanner-reader" style="width:100%;border-radius:10px;overflow:hidden;margin-bottom:12px;"></div>
+    <div id="scanner-reader" style="width:100%;min-height:300px;border-radius:10px;overflow:hidden;margin-bottom:12px;"></div>
     <div id="scanner-status" style="text-align:center;font-size:14px;color:var(--text-light);padding:8px 0;"></div>
     <div id="scanner-result" style="display:none;">
       <div class="entry-item" style="margin-bottom:12px;" id="scanner-product-info"></div>
