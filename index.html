@@ -545,7 +545,7 @@ async function doAuth() {
         name: username,
       });
     }
-    await pb.collection('users').authWithPassword(username, pass);
+    await pb.collection('users').authWithPassword(username + '@placeholder.local', pass);
     onLoginSuccess();
   } catch (e) {
     console.error('Auth error:', e, JSON.stringify(e.response || {}));
