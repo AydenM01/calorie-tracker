@@ -322,6 +322,47 @@
     color: var(--text-light);
   }
   .user-bar a { color: var(--danger); cursor: pointer; text-decoration: none; font-weight: 600; }
+
+  /* Calculator */
+  .calc-q { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .calc-sub { font-size: 13px; color: var(--text-light); margin-bottom: 14px; }
+  .calc-options { display: flex; flex-direction: column; gap: 8px; }
+  .calc-opt {
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .calc-opt:active, .calc-opt:hover { border-color: var(--primary); background: var(--primary-light); }
+  .calc-opt-sub { display: block; font-size: 12px; font-weight: 400; color: var(--text-light); margin-top: 2px; }
+  .calc-result-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .calc-result-item { text-align: center; padding: 10px 4px; background: var(--bg); border-radius: 10px; }
+  .calc-result-label { font-size: 11px; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; }
+  .calc-result-value { font-size: 22px; font-weight: 700; color: var(--primary); margin: 2px 0; }
+  .calc-result-note { font-size: 11px; color: var(--text-light); }
+  .calc-rec-row { display: flex; justify-content: space-between; align-items: center; }
+  .calc-rec-label { font-size: 15px; font-weight: 500; }
+  .calc-rec-value { font-size: 20px; font-weight: 700; }
+  .calc-rec-explain { font-size: 12px; color: var(--text-light); margin-top: 4px; line-height: 1.4; }
+  .calc-restart {
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px;
+    background: none;
+    border: none;
+    color: var(--text-light);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
 </style>
 </head>
 <body>
@@ -433,10 +474,138 @@
   <div id="history-list"></div>
 </div>
 
+<!-- ======== CALCULATOR PAGE ======== -->
+<div id="page-calc" class="page">
+  <div class="header">
+    <h1>Goal Calculator</h1>
+  </div>
+
+  <!-- Step 1: Sex -->
+  <div class="calc-step" id="calc-step-1">
+    <div class="summary-card">
+      <h3 class="calc-q">What is your biological sex?</h3>
+      <p class="calc-sub">Used for metabolic rate calculation</p>
+      <div class="calc-options">
+        <button class="calc-opt" onclick="calcSet('sex','male')">Male</button>
+        <button class="calc-opt" onclick="calcSet('sex','female')">Female</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Age -->
+  <div class="calc-step" id="calc-step-2" style="display:none;">
+    <div class="summary-card">
+      <h3 class="calc-q">How old are you?</h3>
+      <label>Age</label>
+      <input type="number" id="calc-age" placeholder="e.g. 28" inputmode="numeric">
+      <button class="btn-add" style="width:100%;" onclick="calcNext(3)">Next</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Height -->
+  <div class="calc-step" id="calc-step-3" style="display:none;">
+    <div class="summary-card">
+      <h3 class="calc-q">What is your height?</h3>
+      <div class="settings-row">
+        <div>
+          <label>Feet</label>
+          <input type="number" id="calc-feet" placeholder="5" inputmode="numeric">
+        </div>
+        <div>
+          <label>Inches</label>
+          <input type="number" id="calc-inches" placeholder="10" inputmode="numeric">
+        </div>
+      </div>
+      <button class="btn-add" style="width:100%;" onclick="calcNext(4)">Next</button>
+    </div>
+  </div>
+
+  <!-- Step 4: Weight -->
+  <div class="calc-step" id="calc-step-4" style="display:none;">
+    <div class="summary-card">
+      <h3 class="calc-q">What is your current weight?</h3>
+      <label>Weight (lbs)</label>
+      <input type="number" id="calc-weight" placeholder="e.g. 170" inputmode="decimal">
+      <button class="btn-add" style="width:100%;" onclick="calcNext(5)">Next</button>
+    </div>
+  </div>
+
+  <!-- Step 5: Goal weight -->
+  <div class="calc-step" id="calc-step-5" style="display:none;">
+    <div class="summary-card">
+      <h3 class="calc-q">What is your goal weight?</h3>
+      <label>Goal weight (lbs)</label>
+      <input type="number" id="calc-goal-weight" placeholder="e.g. 155" inputmode="decimal">
+      <button class="btn-add" style="width:100%;" onclick="calcNext(6)">Next</button>
+    </div>
+  </div>
+
+  <!-- Step 6: Activity -->
+  <div class="calc-step" id="calc-step-6" style="display:none;">
+    <div class="summary-card">
+      <h3 class="calc-q">How often do you exercise?</h3>
+      <p class="calc-sub">Moderate exercise (elevated heart rate)</p>
+      <div class="calc-options">
+        <button class="calc-opt" onclick="calcSet('activity',1.2)">Sedentary<span class="calc-opt-sub">Little to no exercise</span></button>
+        <button class="calc-opt" onclick="calcSet('activity',1.375)">Light<span class="calc-opt-sub">1-2 days/week</span></button>
+        <button class="calc-opt" onclick="calcSet('activity',1.55)">Moderate<span class="calc-opt-sub">3-5 days/week</span></button>
+        <button class="calc-opt" onclick="calcSet('activity',1.725)">Active<span class="calc-opt-sub">6-7 days/week</span></button>
+        <button class="calc-opt" onclick="calcSet('activity',1.9)">Very Active<span class="calc-opt-sub">Athlete / physical job</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="calc-step" id="calc-results" style="display:none;">
+    <div class="summary-card" style="margin-bottom:12px;">
+      <h3 class="calc-q">Your Results</h3>
+      <div class="calc-result-grid">
+        <div class="calc-result-item">
+          <div class="calc-result-label">BMI</div>
+          <div class="calc-result-value" id="res-bmi">--</div>
+          <div class="calc-result-note" id="res-bmi-cat">--</div>
+        </div>
+        <div class="calc-result-item">
+          <div class="calc-result-label">BMR</div>
+          <div class="calc-result-value" id="res-bmr">--</div>
+          <div class="calc-result-note">cal/day at rest</div>
+        </div>
+        <div class="calc-result-item">
+          <div class="calc-result-label">TDEE</div>
+          <div class="calc-result-value" id="res-tdee">--</div>
+          <div class="calc-result-note">maintenance cal/day</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-card" style="margin-bottom:12px;">
+      <h3 class="calc-q">Recommended Goals</h3>
+      <div class="calc-rec">
+        <div class="calc-rec-row">
+          <span class="calc-rec-label">Daily Calories</span>
+          <span class="calc-rec-value" id="res-cal" style="color:var(--primary);">--</span>
+        </div>
+        <div class="calc-rec-explain" id="res-cal-explain"></div>
+        <div class="calc-rec-row" style="margin-top:12px;">
+          <span class="calc-rec-label">Daily Water</span>
+          <span class="calc-rec-value" id="res-water" style="color:var(--water);">--</span>
+        </div>
+        <div class="calc-rec-explain" id="res-water-explain"></div>
+      </div>
+    </div>
+
+    <button class="btn-add" style="width:100%;padding:14px;font-size:15px;" onclick="applyCalcGoals()">Apply These Goals</button>
+    <button class="calc-restart" onclick="resetCalc()">Start Over</button>
+  </div>
+</div>
+
 <!-- ======== BOTTOM TABS ======== -->
 <div class="tabs" id="main-tabs" style="display:none;">
   <button class="tab-btn active" onclick="switchTab('track')" id="tab-track">
     <span class="tab-icon">&#9737;</span>Today
+  </button>
+  <button class="tab-btn" onclick="switchTab('calc')" id="tab-calc">
+    <span class="tab-icon">&#9878;</span>Goals
   </button>
   <button class="tab-btn" onclick="switchTab('history')" id="tab-history">
     <span class="tab-icon">&#9776;</span>History
@@ -912,6 +1081,143 @@ document.getElementById('auth-username').addEventListener('keydown', e => { if (
 // ---- Close modals on overlay click ----
 document.getElementById('food-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeFoodModal(); });
 document.getElementById('preset-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closePresetModal(); });
+
+// ---- Calculator ----
+let calcData = {};
+
+function resetCalc() {
+  calcData = {};
+  document.querySelectorAll('.calc-step').forEach(s => s.style.display = 'none');
+  document.getElementById('calc-step-1').style.display = 'block';
+  // Clear inputs
+  ['calc-age','calc-feet','calc-inches','calc-weight','calc-goal-weight'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+function calcSet(key, value) {
+  calcData[key] = value;
+  if (key === 'sex') calcShowStep(2);
+  if (key === 'activity') calcCompute();
+}
+
+function calcNext(step) {
+  // Validate current step
+  if (step === 3) {
+    const age = parseInt(document.getElementById('calc-age').value);
+    if (!age || age < 1 || age > 120) return;
+    calcData.age = age;
+  } else if (step === 4) {
+    const ft = parseInt(document.getElementById('calc-feet').value) || 0;
+    const inches = parseInt(document.getElementById('calc-inches').value) || 0;
+    const totalInches = ft * 12 + inches;
+    if (totalInches < 36 || totalInches > 96) return;
+    calcData.heightCm = totalInches * 2.54;
+    calcData.heightIn = totalInches;
+  } else if (step === 5) {
+    const w = parseFloat(document.getElementById('calc-weight').value);
+    if (!w || w < 50 || w > 700) return;
+    calcData.weightLbs = w;
+    calcData.weightKg = w * 0.453592;
+  } else if (step === 6) {
+    const gw = parseFloat(document.getElementById('calc-goal-weight').value);
+    if (!gw || gw < 50 || gw > 700) return;
+    calcData.goalWeightLbs = gw;
+  }
+  calcShowStep(step);
+}
+
+function calcShowStep(n) {
+  document.querySelectorAll('.calc-step').forEach(s => s.style.display = 'none');
+  document.getElementById('calc-step-' + n).style.display = 'block';
+}
+
+function calcCompute() {
+  const { sex, age, heightCm, weightKg, weightLbs, goalWeightLbs, activity } = calcData;
+
+  // BMI: weight(kg) / height(m)^2
+  const heightM = heightCm / 100;
+  const bmi = weightKg / (heightM * heightM);
+  let bmiCat = 'Normal';
+  if (bmi < 18.5) bmiCat = 'Underweight';
+  else if (bmi < 25) bmiCat = 'Normal';
+  else if (bmi < 30) bmiCat = 'Overweight';
+  else bmiCat = 'Obese';
+
+  // Mifflin-St Jeor BMR
+  let bmr;
+  if (sex === 'male') {
+    bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + 5;
+  } else {
+    bmr = 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
+  }
+
+  // TDEE
+  const tdee = bmr * activity;
+
+  // Calorie goal based on weight goal
+  let calGoal;
+  let calExplain;
+  const diff = weightLbs - goalWeightLbs;
+  if (diff > 5) {
+    // Lose weight: 500 cal deficit = ~1 lb/week, cap at 1000 deficit
+    const deficit = Math.min(Math.round(diff * 3.5), 1000); // scale deficit
+    const deficitClamped = Math.max(250, Math.min(deficit, 1000));
+    calGoal = Math.round(tdee - deficitClamped);
+    const lbsPerWeek = (deficitClamped / 500).toFixed(1);
+    calExplain = `${deficitClamped} cal/day deficit from your TDEE (${Math.round(tdee)}). ` +
+      `Projected loss: ~${lbsPerWeek} lb/week. Minimum safe intake: ${sex === 'male' ? '1,500' : '1,200'} cal/day.`;
+    // Enforce minimums
+    const minCal = sex === 'male' ? 1500 : 1200;
+    if (calGoal < minCal) calGoal = minCal;
+  } else if (diff < -5) {
+    // Gain weight: 300-500 surplus
+    const surplus = Math.min(Math.round(Math.abs(diff) * 3), 500);
+    calGoal = Math.round(tdee + surplus);
+    calExplain = `${surplus} cal/day surplus above your TDEE (${Math.round(tdee)}) for healthy weight gain.`;
+  } else {
+    // Maintain
+    calGoal = Math.round(tdee);
+    calExplain = `Your goal weight is close to your current weight. This is your maintenance level (TDEE).`;
+  }
+
+  // Water: 0.5 oz per lb of body weight, add 12 oz per 30 min exercise
+  // Simplified: base on weight, adjust for activity
+  let waterOz = Math.round(weightLbs * 0.5);
+  let waterExtra = 0;
+  if (activity >= 1.55) waterExtra = 16;
+  if (activity >= 1.725) waterExtra = 32;
+  if (activity >= 1.9) waterExtra = 48;
+  waterOz += waterExtra;
+  const waterExplain = `Based on 0.5 oz per lb of body weight (${Math.round(weightLbs * 0.5)} oz)` +
+    (waterExtra > 0 ? ` + ${waterExtra} oz for exercise.` : '.');
+
+  // Store for apply
+  calcData.recCalGoal = calGoal;
+  calcData.recWaterGoal = waterOz;
+
+  // Display
+  document.getElementById('res-bmi').textContent = bmi.toFixed(1);
+  document.getElementById('res-bmi-cat').textContent = bmiCat;
+  document.getElementById('res-bmr').textContent = Math.round(bmr);
+  document.getElementById('res-tdee').textContent = Math.round(tdee);
+  document.getElementById('res-cal').textContent = calGoal + ' cal';
+  document.getElementById('res-cal-explain').textContent = calExplain;
+  document.getElementById('res-water').textContent = waterOz + ' oz';
+  document.getElementById('res-water-explain').textContent = waterExplain;
+
+  document.querySelectorAll('.calc-step').forEach(s => s.style.display = 'none');
+  document.getElementById('calc-results').style.display = 'block';
+}
+
+async function applyCalcGoals() {
+  userSettings.cal_goal = calcData.recCalGoal;
+  userSettings.water_goal = calcData.recWaterGoal;
+  await saveSettingsToServer();
+  render();
+  switchTab('track');
+}
 
 // ---- Init: check if already logged in ----
 if (pb.authStore.isValid) {
