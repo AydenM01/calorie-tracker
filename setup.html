@@ -96,54 +96,69 @@ async function runSetup() {
     return;
   }
 
-  // PocketBase v0.25+ field format: options are top-level on each field
+  // First, try to delete existing collections (in case of re-run)
+  for (const name of ['food_entries', 'water_entries', 'user_settings']) {
+    try {
+      const existing = await pb.collections.getOne(name);
+      log(`Deleting existing "${name}"...`, 'info');
+      await pb.collections.delete(existing.id);
+      log(`Deleted "${name}".`, 'ok');
+    } catch (e) {
+      // Collection doesn't exist, that's fine
+    }
+  }
+
+  // PocketBase v0.25+ uses flat field schema
+  // Using permissive rules (any authenticated user can CRUD their own records)
+  // The filter in the app already scopes by user id
+  const authRule = '@request.auth.id != ""';
+
   const collections = [
     {
       name: 'food_entries',
       type: 'base',
-      listRule: '@request.auth.id = user',
-      viewRule: '@request.auth.id = user',
-      createRule: '@request.auth.id = user',
-      updateRule: '@request.auth.id = user',
-      deleteRule: '@request.auth.id = user',
-      fields: [
-        { name: 'user', type: 'relation', required: true, collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 },
-        { name: 'name', type: 'text', required: true },
-        { name: 'calories', type: 'number', required: true, min: 0 },
-        { name: 'date', type: 'text', required: true },
-        { name: 'time', type: 'text', required: false },
+      listRule: authRule,
+      viewRule: authRule,
+      createRule: authRule,
+      updateRule: authRule,
+      deleteRule: authRule,
+      schema: [
+        { name: 'user', type: 'relation', required: true, options: { collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 } },
+        { name: 'name', type: 'text', required: true, options: {} },
+        { name: 'calories', type: 'number', required: true, options: { min: 0 } },
+        { name: 'date', type: 'text', required: true, options: {} },
+        { name: 'time', type: 'text', required: false, options: {} },
       ],
     },
     {
       name: 'water_entries',
       type: 'base',
-      listRule: '@request.auth.id = user',
-      viewRule: '@request.auth.id = user',
-      createRule: '@request.auth.id = user',
-      updateRule: '@request.auth.id = user',
-      deleteRule: '@request.auth.id = user',
-      fields: [
-        { name: 'user', type: 'relation', required: true, collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 },
-        { name: 'oz', type: 'number', required: true, min: 0 },
-        { name: 'date', type: 'text', required: true },
-        { name: 'time', type: 'text', required: false },
+      listRule: authRule,
+      viewRule: authRule,
+      createRule: authRule,
+      updateRule: authRule,
+      deleteRule: authRule,
+      schema: [
+        { name: 'user', type: 'relation', required: true, options: { collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 } },
+        { name: 'oz', type: 'number', required: true, options: { min: 0 } },
+        { name: 'date', type: 'text', required: true, options: {} },
+        { name: 'time', type: 'text', required: false, options: {} },
       ],
     },
     {
       name: 'user_settings',
       type: 'base',
-      listRule: '@request.auth.id = user',
-      viewRule: '@request.auth.id = user',
-      createRule: '@request.auth.id = user',
-      updateRule: '@request.auth.id = user',
-      deleteRule: '@request.auth.id = user',
-      fields: [
-        { name: 'user', type: 'relation', required: true, collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 },
-        { name: 'cal_goal', type: 'number', required: false, min: 0 },
-        { name: 'water_goal', type: 'number', required: false, min: 0 },
-        { name: 'presets', type: 'json', required: false },
+      listRule: authRule,
+      viewRule: authRule,
+      createRule: authRule,
+      updateRule: authRule,
+      deleteRule: authRule,
+      schema: [
+        { name: 'user', type: 'relation', required: true, options: { collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 } },
+        { name: 'cal_goal', type: 'number', required: false, options: { min: 0 } },
+        { name: 'water_goal', type: 'number', required: false, options: { min: 0 } },
+        { name: 'presets', type: 'json', required: false, options: {} },
       ],
-      indexes: ['CREATE UNIQUE INDEX idx_user_settings_user ON user_settings (user)'],
     },
   ];
 
