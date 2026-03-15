@@ -1379,31 +1379,32 @@ function openScanner() {
   scannedProduct = null;
 
   // Small delay to let modal render
-  setTimeout(() => {
+  const statusEl = document.getElementById('scanner-status');
+  setTimeout(async () => {
     try {
+      statusEl.textContent = 'Starting camera...';
       html5Scanner = new Html5Qrcode('scanner-reader');
-      const config = { fps: 10, qrbox: { width: 250, height: 150 } };
-      if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
-        config.formatsToSupport = [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128,
-        ];
+      const cameras = await Html5Qrcode.getCameras();
+      statusEl.textContent = `Found ${cameras.length} camera(s). Opening...`;
+
+      if (cameras.length === 0) {
+        statusEl.textContent = 'No cameras found on this device.';
+        return;
       }
-      html5Scanner.start(
-        { facingMode: 'environment' },
-        config,
+
+      // Prefer back camera
+      const backCam = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('rear'));
+      const cameraId = backCam ? backCam.id : cameras[cameras.length - 1].id;
+
+      await html5Scanner.start(
+        cameraId,
+        { fps: 10, qrbox: { width: 250, height: 150 } },
         onBarcodeScanned,
         () => {}
-      ).catch(err => {
-        document.getElementById('scanner-status').textContent = 'Camera access denied or unavailable.';
-        console.error('Scanner error:', err);
-      });
+      );
+      statusEl.textContent = 'Point your camera at a barcode...';
     } catch (err) {
-      document.getElementById('scanner-status').textContent = 'Scanner not available. Try manual entry.';
-      console.error('Scanner init error:', err);
+      statusEl.textContent = 'Error: ' + (err.message || err);
     }
   }, 300);
 }
