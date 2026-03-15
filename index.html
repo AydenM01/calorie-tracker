@@ -754,25 +754,39 @@
       <div id="pace-options"></div>
     </div>
 
-    <div class="summary-card" style="margin-bottom:12px;">
-      <h3 class="calc-q">Suggested Macros</h3>
-      <p class="calc-sub">Based on your selected calorie target</p>
-      <div id="macro-suggestions" style="display:flex;gap:8px;margin-bottom:8px;">
-        <div class="macro-item" style="flex:1;"><span class="macro-val" id="res-macro-p" style="color:#e07b4c;">--</span><span class="macro-label">Protein</span></div>
-        <div class="macro-item" style="flex:1;"><span class="macro-val" id="res-macro-c" style="color:#d4a843;">--</span><span class="macro-label">Carbs</span></div>
-        <div class="macro-item" style="flex:1;"><span class="macro-val" id="res-macro-f" style="color:#7b8fe0;">--</span><span class="macro-label">Fat</span></div>
-      </div>
-      <div class="calc-rec-explain" id="res-macro-explain"></div>
-    </div>
-
-    <div class="summary-card" style="margin-bottom:12px;">
-      <div class="calc-rec">
-        <div class="calc-rec-row">
-          <span class="calc-rec-label">Daily Water</span>
-          <span class="calc-rec-value" id="res-water" style="color:var(--water);">--</span>
+    <div id="pace-detail" style="display:none;">
+      <div class="summary-card" style="margin-bottom:12px;">
+        <h3 class="calc-q" id="pace-detail-title">Your Plan</h3>
+        <div class="calc-rec">
+          <div class="calc-rec-row">
+            <span class="calc-rec-label">Daily Calories</span>
+            <span class="calc-rec-value" id="res-selected-cal" style="color:var(--primary);">--</span>
+          </div>
         </div>
-        <div class="calc-rec-explain" id="res-water-explain"></div>
       </div>
+
+      <div class="summary-card" style="margin-bottom:12px;">
+        <h3 class="calc-q">Suggested Macros</h3>
+        <p class="calc-sub">Based on your selected calorie target</p>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <div class="macro-item" style="flex:1;"><span class="macro-val" id="res-macro-p" style="color:var(--macro-p);">--</span><span class="macro-label">Protein</span></div>
+          <div class="macro-item" style="flex:1;"><span class="macro-val" id="res-macro-c" style="color:var(--macro-c);">--</span><span class="macro-label">Carbs</span></div>
+          <div class="macro-item" style="flex:1;"><span class="macro-val" id="res-macro-f" style="color:var(--macro-f);">--</span><span class="macro-label">Fat</span></div>
+        </div>
+        <div class="calc-rec-explain" id="res-macro-explain"></div>
+      </div>
+
+      <div class="summary-card" style="margin-bottom:12px;">
+        <div class="calc-rec">
+          <div class="calc-rec-row">
+            <span class="calc-rec-label">Daily Water</span>
+            <span class="calc-rec-value" id="res-water" style="color:var(--water);">--</span>
+          </div>
+          <div class="calc-rec-explain" id="res-water-explain"></div>
+        </div>
+      </div>
+
+      <button class="btn-add" style="width:100%;padding:16px;font-size:16px;" onclick="applyCalcGoals()">Apply This Plan</button>
     </div>
 
     <button class="calc-restart" onclick="resetCalc()">Start Over</button>
@@ -1763,7 +1777,7 @@ function resetCalc() {
   calcData = {};
   document.querySelectorAll('.calc-step').forEach(s => s.style.display = 'none');
   document.getElementById('calc-step-1').style.display = 'block';
-  // Clear inputs
+  document.getElementById('pace-detail').style.display = 'none';
   ['calc-age','calc-feet','calc-inches','calc-weight','calc-goal-weight'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
@@ -1922,6 +1936,7 @@ function calcCompute() {
   document.getElementById('res-water-explain').textContent = waterExplain;
 
   document.querySelectorAll('.calc-step').forEach(s => s.style.display = 'none');
+  document.getElementById('pace-detail').style.display = 'none';
   document.getElementById('calc-results').style.display = 'block';
 }
 
@@ -1930,15 +1945,12 @@ function selectPace(calGoal, goalDate, goalWeight) {
   calcData.goalDate = goalDate;
   calcData.goalWeightLbs = goalWeight;
 
-  // Calculate recommended macros based on calorie goal and body weight
-  // Protein: 0.8-1g per lb of goal weight (higher for deficit)
-  // Fat: 25-30% of calories
-  // Carbs: remainder
+  // Calculate recommended macros
   const weightForCalc = goalWeight || calcData.currentWeightLbs;
   const isDeficit = calcData.currentWeightLbs > goalWeight;
-  const proteinPerLb = isDeficit ? 1.0 : 0.8; // higher protein when cutting
+  const proteinPerLb = isDeficit ? 1.0 : 0.8;
   const proteinG = Math.round(weightForCalc * proteinPerLb);
-  const fatCals = Math.round(calGoal * 0.27); // ~27% from fat
+  const fatCals = Math.round(calGoal * 0.27);
   const fatG = Math.round(fatCals / 9);
   const proteinCals = proteinG * 4;
   const carbCals = calGoal - proteinCals - fatCals;
@@ -1948,7 +1960,8 @@ function selectPace(calGoal, goalDate, goalWeight) {
   calcData.recCarbs = carbsG;
   calcData.recFat = fatG;
 
-  // Display suggestions
+  // Show plan details
+  document.getElementById('res-selected-cal').textContent = calGoal + ' cal';
   document.getElementById('res-macro-p').textContent = proteinG + 'g';
   document.getElementById('res-macro-c').textContent = carbsG + 'g';
   document.getElementById('res-macro-f').textContent = fatG + 'g';
@@ -1960,7 +1973,15 @@ function selectPace(calGoal, goalDate, goalWeight) {
     `Split: ${pPct}% protein, ${cPct}% carbs, ${fPct}% fat. ` +
     `Protein set to ${proteinPerLb}g per lb of ${isDeficit ? 'goal' : 'body'} weight to ${isDeficit ? 'preserve muscle during weight loss' : 'support muscle growth'}.`;
 
-  applyCalcGoals();
+  if (goalDate) {
+    const gd = new Date(goalDate + 'T12:00:00');
+    document.getElementById('pace-detail-title').textContent = 'Your Plan (by ' + gd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ')';
+  } else {
+    document.getElementById('pace-detail-title').textContent = 'Your Plan';
+  }
+
+  document.getElementById('pace-detail').style.display = 'block';
+  document.getElementById('pace-detail').scrollIntoView({ behavior: 'smooth' });
 }
 
 async function applyCalcGoals() {
