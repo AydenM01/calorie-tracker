@@ -724,22 +724,27 @@
 <div class="modal-overlay" id="scanner-modal">
   <div class="modal" style="padding-top:16px;max-height:90dvh;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <h3 style="margin:0;">Scan Barcode</h3>
+      <h3 style="margin:0;" id="scanner-title">Scan Barcode</h3>
       <button onclick="closeScanner()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-light);padding:4px;">&times;</button>
     </div>
-    <div id="scanner-reader" style="width:100%;min-height:250px;border-radius:10px;overflow:hidden;margin-bottom:8px;"></div>
-    <div id="scanner-status" style="text-align:center;font-size:14px;color:var(--text-light);padding:8px 0;"></div>
-    <div style="text-align:center;margin-bottom:8px;"><span style="font-size:12px;color:var(--text-light);">or enter barcode manually:</span></div>
-    <div id="scanner-manual" style="margin-bottom:12px;display:flex;gap:8px;">
-      <input type="text" id="scanner-barcode-input" placeholder="e.g. 049000042566" inputmode="numeric" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:16px;outline:none;font-family:inherit;">
-      <button class="btn-add" onclick="manualBarcodeLookup()">Look Up</button>
+    <!-- Scan view -->
+    <div id="scanner-scan-view">
+      <div id="scanner-reader" style="width:100%;min-height:250px;border-radius:10px;overflow:hidden;margin-bottom:8px;"></div>
+      <div id="scanner-status" style="text-align:center;font-size:14px;color:var(--text-light);padding:8px 0;"></div>
+      <div style="text-align:center;margin-bottom:8px;"><span style="font-size:12px;color:var(--text-light);">or enter barcode manually:</span></div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="scanner-barcode-input" placeholder="e.g. 049000042566" inputmode="numeric" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:16px;outline:none;font-family:inherit;">
+        <button class="btn-add" onclick="manualBarcodeLookup()">Look Up</button>
+      </div>
     </div>
+    <!-- Result view -->
     <div id="scanner-result" style="display:none;">
-      <div class="entry-item" style="margin-bottom:12px;" id="scanner-product-info"></div>
+      <div id="scanner-product-info" style="background:var(--bg);border-radius:12px;padding:16px;margin-bottom:16px;"></div>
       <label>Servings</label>
-      <input type="number" id="scanner-servings" value="1" min="0.25" step="0.25" inputmode="decimal" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:16px;margin-bottom:14px;outline:none;font-family:inherit;">
+      <input type="number" id="scanner-servings" value="1" min="0.25" step="0.25" inputmode="decimal" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:16px;margin-bottom:6px;outline:none;font-family:inherit;">
+      <div id="scanner-cal-total" style="text-align:right;font-size:14px;font-weight:600;color:var(--primary);margin-bottom:14px;"></div>
       <div class="modal-btns">
-        <button class="cancel" onclick="closeScanner()">Cancel</button>
+        <button class="cancel" onclick="scannerBackToScan()">Scan Another</button>
         <button class="save" onclick="addScannedFood()">Add</button>
       </div>
     </div>
@@ -1385,6 +1390,9 @@ async function openScanner() {
   const modal = document.getElementById('scanner-modal');
   const statusEl = document.getElementById('scanner-status');
   document.getElementById('scanner-result').style.display = 'none';
+  document.getElementById('scanner-scan-view').style.display = 'block';
+  document.getElementById('scanner-title').textContent = 'Scan Barcode';
+  document.getElementById('scanner-barcode-input').value = '';
   statusEl.textContent = 'Loading scanner...';
   scannedProduct = null;
   modal.classList.add('open');
@@ -1474,14 +1482,20 @@ async function onBarcodeScanned(barcode) {
       };
 
       document.getElementById('scanner-product-info').innerHTML = `
-        <div class="info">
-          <div class="name">${esc(scannedProduct.name)}</div>
-          <div class="time">${calPerServing} cal per ${esc(servingDesc)}</div>
-        </div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:4px;">${esc(scannedProduct.name)}</div>
+        <div style="font-size:14px;color:var(--text-light);">${calPerServing} cal per ${esc(servingDesc)}</div>
       `;
       document.getElementById('scanner-servings').value = '1';
-      document.getElementById('scanner-status').style.display = 'none';
+      document.getElementById('scanner-cal-total').textContent = `Total: ${calPerServing} cal`;
+      document.getElementById('scanner-title').textContent = 'Add Food';
+      document.getElementById('scanner-scan-view').style.display = 'none';
       document.getElementById('scanner-result').style.display = 'block';
+
+      // Update total when servings change
+      document.getElementById('scanner-servings').oninput = () => {
+        const s = parseFloat(document.getElementById('scanner-servings').value) || 1;
+        document.getElementById('scanner-cal-total').textContent = `Total: ${Math.round(calPerServing * s)} cal`;
+      };
     } else {
       document.getElementById('scanner-status').textContent = `Product not found for barcode ${barcode}. Try manual entry.`;
       setTimeout(() => {
@@ -1515,6 +1529,14 @@ async function addScannedFood() {
     await loadDayData(currentDate);
     render();
   } catch (e) { console.error('Failed to add scanned food', e); }
+}
+
+function scannerBackToScan() {
+  document.getElementById('scanner-result').style.display = 'none';
+  document.getElementById('scanner-scan-view').style.display = 'block';
+  document.getElementById('scanner-title').textContent = 'Scan Barcode';
+  scannedProduct = null;
+  openScanner();
 }
 
 function manualBarcodeLookup() {
