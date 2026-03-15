@@ -705,8 +705,9 @@
   <!-- Step 4: Weight -->
   <div class="calc-step" id="calc-step-4" style="display:none;">
     <div class="summary-card">
-      <a class="calc-back" onclick="calcShowStep(3)">&larr; Back</a>
+      <a class="calc-back" onclick="calcBackFromWeight()">&larr; Back</a>
       <h3 class="calc-q">What is your current weight?</h3>
+      <div id="calc-profile-summary" style="display:none;font-size:13px;color:var(--text-light);margin-bottom:12px;padding:10px 12px;background:var(--bg);border-radius:10px;"></div>
       <label>Weight (lbs)</label>
       <input type="number" id="calc-weight" placeholder="e.g. 170" inputmode="decimal">
       <button class="btn-add" style="width:100%;" onclick="calcNext(5)">Next</button>
@@ -1054,6 +1055,10 @@ async function loadSettings() {
         userSettings.carbs_goal = p.carbs_goal || 0;
         userSettings.fat_goal = p.fat_goal || 0;
         userSettings.current_weight = p.current_weight || null;
+        userSettings.profile_sex = p.profile_sex || null;
+        userSettings.profile_age = p.profile_age || null;
+        userSettings.profile_height_ft = p.profile_height_ft || null;
+        userSettings.profile_height_in = p.profile_height_in || null;
       }
     }
   } catch (e) {
@@ -1075,6 +1080,10 @@ async function saveSettingsToServer() {
       carbs_goal: userSettings.carbs_goal || 0,
       fat_goal: userSettings.fat_goal || 0,
       current_weight: userSettings.current_weight || null,
+      profile_sex: userSettings.profile_sex || null,
+      profile_age: userSettings.profile_age || null,
+      profile_height_ft: userSettings.profile_height_ft || null,
+      profile_height_in: userSettings.profile_height_in || null,
     },
   };
   try {
@@ -1793,12 +1802,63 @@ let calcData = {};
 function resetCalc() {
   calcData = {};
   document.querySelectorAll('.calc-step').forEach(s => s.style.display = 'none');
-  document.getElementById('calc-step-1').style.display = 'block';
   document.getElementById('pace-detail').style.display = 'none';
-  ['calc-age','calc-feet','calc-inches','calc-weight','calc-goal-weight'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
+
+  const s = userSettings;
+  const hasProfile = s.profile_sex && s.profile_age && s.profile_height_ft != null;
+
+  if (hasProfile) {
+    // Pre-populate from saved profile
+    calcData.sex = s.profile_sex;
+    calcData.age = s.profile_age;
+    const ft = s.profile_height_ft;
+    const inches = s.profile_height_in || 0;
+    calcData.heightFt = ft;
+    calcData.heightIn = inches;
+    calcData.heightCm = (ft * 12 + inches) * 2.54;
+
+    // Pre-fill weight from latest weigh-in or saved weight
+    const currentWeight = weighInCache.length > 0 ? weighInCache[0].weight : s.current_weight;
+    if (currentWeight) {
+      document.getElementById('calc-weight').value = currentWeight;
+    } else {
+      document.getElementById('calc-weight').value = '';
+    }
+    document.getElementById('calc-goal-weight').value = s.goal_weight || '';
+
+    // Show profile summary and skip to weight step
+    const sexLabel = s.profile_sex === 'male' ? 'Male' : 'Female';
+    const totalIn = ft * 12 + inches;
+    document.getElementById('calc-profile-summary').style.display = 'block';
+    document.getElementById('calc-profile-summary').textContent = `${sexLabel}, ${s.profile_age} yrs, ${ft}'${inches}" — tap Back to change`;
+    document.getElementById('calc-step-4').style.display = 'block';
+  } else {
+    // First time — start from step 1
+    document.getElementById('calc-profile-summary').style.display = 'none';
+    document.getElementById('calc-step-1').style.display = 'block';
+    ['calc-age','calc-feet','calc-inches','calc-weight','calc-goal-weight'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+  }
+}
+
+function calcBackFromWeight() {
+  // If we have a saved profile, going back means re-entering profile data
+  if (userSettings.profile_sex) {
+    // Clear profile from calcData so steps 1-3 run fresh
+    delete calcData.sex;
+    delete calcData.age;
+    delete calcData.heightCm;
+    delete calcData.heightFt;
+    delete calcData.heightIn;
+    document.getElementById('calc-age').value = userSettings.profile_age || '';
+    document.getElementById('calc-feet').value = userSettings.profile_height_ft || '';
+    document.getElementById('calc-inches').value = userSettings.profile_height_in || '';
+    calcShowStep(1);
+  } else {
+    calcShowStep(3);
+  }
 }
 
 function calcSet(key, value) {
@@ -1819,7 +1879,8 @@ function calcNext(step) {
     const totalInches = ft * 12 + inches;
     if (totalInches < 36 || totalInches > 96) return;
     calcData.heightCm = totalInches * 2.54;
-    calcData.heightIn = totalInches;
+    calcData.heightFt = ft;
+    calcData.heightIn = inches;
   } else if (step === 5) {
     const w = parseFloat(document.getElementById('calc-weight').value);
     if (!w || w < 50 || w > 700) return;
@@ -2013,6 +2074,11 @@ async function applyCalcGoals() {
   userSettings.protein_goal = calcData.recProtein || 0;
   userSettings.carbs_goal = calcData.recCarbs || 0;
   userSettings.fat_goal = calcData.recFat || 0;
+  // Save profile data that doesn't change
+  userSettings.profile_sex = calcData.sex || userSettings.profile_sex || null;
+  userSettings.profile_age = calcData.age || userSettings.profile_age || null;
+  userSettings.profile_height_ft = calcData.heightFt || userSettings.profile_height_ft || null;
+  userSettings.profile_height_in = calcData.heightIn || userSettings.profile_height_in || null;
   await saveSettingsToServer();
   render();
   switchTab('track');
