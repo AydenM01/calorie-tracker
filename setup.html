@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Setup - Daily Tracker</title>
+<script src="https://cdn.jsdelivr.net/gh/pocketbase/js-sdk@master/dist/pocketbase.umd.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #fafafa; color: #2c2c2c;
+    max-width: 500px; margin: 0 auto; padding: 40px 20px;
+  }
+  h1 { font-size: 24px; margin-bottom: 8px; }
+  p { color: #888; margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
+  .card {
+    background: #fff; border-radius: 14px; padding: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 16px;
+  }
+  label { display: block; font-size: 13px; font-weight: 600; color: #888; margin-bottom: 6px; }
+  input {
+    width: 100%; border: 1.5px solid #e8e8e8; border-radius: 10px;
+    padding: 12px; font-size: 16px; margin-bottom: 14px; outline: none; font-family: inherit;
+  }
+  input:focus { border-color: #5b8a72; }
+  button {
+    width: 100%; padding: 13px; border-radius: 12px; border: none;
+    background: #5b8a72; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; }
+  .step { margin-bottom: 20px; }
+  .step h2 { font-size: 16px; margin-bottom: 8px; }
+  .status { font-size: 13px; margin-top: 8px; padding: 8px 12px; border-radius: 8px; }
+  .status.ok { background: #e8f0ec; color: #3a6b52; }
+  .status.err { background: #fde8e8; color: #d9534f; }
+  .status.info { background: #e3eef8; color: #3a6b9b; }
+  ol { padding-left: 20px; margin-bottom: 16px; }
+  ol li { margin-bottom: 8px; font-size: 14px; line-height: 1.5; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+</style>
+</head>
+<body>
+  <h1>Daily Tracker Setup</h1>
+  <p>Run this once after deploying to create the database collections.</p>
+
+  <div class="card">
+    <div class="step">
+      <h2>Step 1: Create Admin Account</h2>
+      <p>First, go to <a href="/_/" target="_blank"><code>/_/</code> (PocketBase Admin UI)</a> and create your admin account. Then come back here.</p>
+    </div>
+
+    <div class="step">
+      <h2>Step 2: Authenticate</h2>
+      <label>Admin Email</label>
+      <input type="email" id="admin-email" placeholder="admin@example.com">
+      <label>Admin Password</label>
+      <input type="password" id="admin-pass" placeholder="Your admin password">
+    </div>
+
+    <button onclick="runSetup()" id="setup-btn">Create Collections</button>
+    <div id="status-area"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:16px;margin-bottom:8px;">After Setup</h2>
+    <ol>
+      <li>Go to the main app: <a href="/"><code>/</code></a></li>
+      <li>Sign up with a regular (non-admin) account</li>
+      <li>Have your wife sign up too — each account's data is private</li>
+    </ol>
+  </div>
+
+<script>
+const pb = new PocketBase(window.location.origin);
+
+function log(msg, type) {
+  const area = document.getElementById('status-area');
+  area.innerHTML += `<div class="status ${type}">${msg}</div>`;
+}
+
+async function runSetup() {
+  const email = document.getElementById('admin-email').value.trim();
+  const pass = document.getElementById('admin-pass').value;
+  const btn = document.getElementById('setup-btn');
+  btn.disabled = true;
+  document.getElementById('status-area').innerHTML = '';
+
+  try {
+    log('Authenticating as admin...', 'info');
+    await pb.collection('_superusers').authWithPassword(email, pass);
+    log('Authenticated!', 'ok');
+  } catch (e) {
+    log('Auth failed: ' + (e.message || e), 'err');
+    btn.disabled = false;
+    return;
+  }
+
+  const collections = [
+    {
+      name: 'food_entries',
+      type: 'base',
+      listRule: '@request.auth.id = user',
+      viewRule: '@request.auth.id = user',
+      createRule: '@request.auth.id = user',
+      updateRule: '@request.auth.id = user',
+      deleteRule: '@request.auth.id = user',
+      fields: [
+        { name: 'user', type: 'relation', required: true, options: { collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 } },
+        { name: 'name', type: 'text', required: true },
+        { name: 'calories', type: 'number', required: true, options: { min: 0 } },
+        { name: 'date', type: 'text', required: true },
+        { name: 'time', type: 'text', required: false },
+      ],
+    },
+    {
+      name: 'water_entries',
+      type: 'base',
+      listRule: '@request.auth.id = user',
+      viewRule: '@request.auth.id = user',
+      createRule: '@request.auth.id = user',
+      updateRule: '@request.auth.id = user',
+      deleteRule: '@request.auth.id = user',
+      fields: [
+        { name: 'user', type: 'relation', required: true, options: { collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 } },
+        { name: 'oz', type: 'number', required: true, options: { min: 0 } },
+        { name: 'date', type: 'text', required: true },
+        { name: 'time', type: 'text', required: false },
+      ],
+    },
+    {
+      name: 'user_settings',
+      type: 'base',
+      listRule: '@request.auth.id = user',
+      viewRule: '@request.auth.id = user',
+      createRule: '@request.auth.id = user',
+      updateRule: '@request.auth.id = user',
+      deleteRule: '@request.auth.id = user',
+      fields: [
+        { name: 'user', type: 'relation', required: true, options: { collectionId: '_pb_users_auth_', cascadeDelete: true, maxSelect: 1 } },
+        { name: 'cal_goal', type: 'number', required: false, options: { min: 0 } },
+        { name: 'water_goal', type: 'number', required: false, options: { min: 0 } },
+        { name: 'presets', type: 'json', required: false },
+      ],
+      indexes: ['CREATE UNIQUE INDEX idx_user_settings_user ON user_settings (user)'],
+    },
+  ];
+
+  for (const col of collections) {
+    try {
+      log(`Creating "${col.name}"...`, 'info');
+      await pb.collections.create(col);
+      log(`"${col.name}" created!`, 'ok');
+    } catch (e) {
+      const msg = e.response?.message || e.message || e;
+      if (msg.toString().includes('already exists')) {
+        log(`"${col.name}" already exists, skipping.`, 'ok');
+      } else {
+        log(`Failed to create "${col.name}": ${msg}`, 'err');
+      }
+    }
+  }
+
+  log('Setup complete! Go to <a href="/">the app</a> to start using it.', 'ok');
+  pb.authStore.clear();
+}
+</script>
+</body>
+</html>
