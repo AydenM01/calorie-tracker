@@ -8,14 +8,17 @@ routerAdd("POST", "/api/nutritionist", (c) => {
   }
 
   const body = info.data;
-  const remainingCal = body.remaining_cal || 2000;
-  const remainingProtein = body.remaining_protein || 150;
-  const remainingCarbs = body.remaining_carbs || 200;
-  const remainingFat = body.remaining_fat || 60;
-  const mealType = body.meal_type || "any";
-  const preferences = body.preferences || "";
-  const allergies = body.allergies || "";
-  const cuisines = body.cuisines || "";
+  const sanitize = (s, maxLen) => String(s || "").substring(0, maxLen || 200).replace(/["\\\n\r]/g, ' ');
+  const clamp = (n, min, max) => Math.min(Math.max(parseInt(n) || 0, min), max);
+  const remainingCal = clamp(body.remaining_cal, 0, 10000) || 2000;
+  const remainingProtein = clamp(body.remaining_protein, 0, 1000) || 150;
+  const remainingCarbs = clamp(body.remaining_carbs, 0, 1000) || 200;
+  const remainingFat = clamp(body.remaining_fat, 0, 500) || 60;
+  const validTypes = ["any","breakfast","lunch","dinner","snack"];
+  const mealType = validTypes.includes(body.meal_type) ? body.meal_type : "any";
+  const preferences = sanitize(body.preferences, 300);
+  const allergies = sanitize(body.allergies, 200);
+  const cuisines = sanitize(body.cuisines, 200);
 
   const apiKey = $os.getenv("GEMINI_API_KEY");
   if (!apiKey) {
@@ -63,7 +66,7 @@ Respond ONLY with valid JSON, no markdown, no code blocks:
   }
 
   if (res.statusCode !== 200) {
-    return c.json(500, { error: "Gemini API error (HTTP " + res.statusCode + ")", body: res.raw });
+    return c.json(500, { error: "Gemini API error (HTTP " + res.statusCode + ")" });
   }
 
   try {

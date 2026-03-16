@@ -1384,10 +1384,11 @@ function switchTab(name) {
 
 // ---- API helpers ----
 function userId() { return pb.authStore.model.id; }
+function sanitizeFilter(val) { return String(val).replace(/["\\]/g, ''); }
 
 async function loadSettings() {
   try {
-    const records = await pb.collection('user_settings').getList(1, 1, { filter: `user = "${userId()}"` });
+    const records = await pb.collection('user_settings').getList(1, 1, { filter: `user = "${sanitizeFilter(userId())}"` });
     if (records.items.length > 0) {
       const r = records.items[0];
       settingsRecordId = r.id;
@@ -1463,15 +1464,15 @@ async function loadDayData(date) {
   try {
     const [foodRes, waterRes, exRes] = await Promise.all([
       pb.collection('food_entries').getList(1, 200, {
-        filter: `user = "${userId()}" && date = "${date}"`,
+        filter: `user = "${sanitizeFilter(userId())}" && date = "${sanitizeFilter(date)}"`,
         sort: 'created',
       }),
       pb.collection('water_entries').getList(1, 200, {
-        filter: `user = "${userId()}" && date = "${date}"`,
+        filter: `user = "${sanitizeFilter(userId())}" && date = "${sanitizeFilter(date)}"`,
         sort: 'created',
       }),
       pb.collection('exercise_entries').getList(1, 200, {
-        filter: `user = "${userId()}" && date = "${date}"`,
+        filter: `user = "${sanitizeFilter(userId())}" && date = "${sanitizeFilter(date)}"`,
         sort: 'created',
       }),
     ]);
@@ -1984,10 +1985,15 @@ function renderPresets() {
 
 function renderPresetShortcuts() {
   const el = document.getElementById('preset-shortcuts');
-  if (userSettings.presets.length === 0) { el.innerHTML = ''; return; }
-  el.innerHTML = userSettings.presets.map(p => `
-    <button style="background:var(--primary-light);color:var(--primary);border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;" onclick="addFromPreset('${esc(p.name).replace(/'/g,"\\'")}', ${p.cal}, ${p.protein||0}, ${p.carbs||0}, ${p.fat||0})">${esc(p.name)} (${p.cal})</button>
-  `).join('');
+  el.innerHTML = '';
+  if (userSettings.presets.length === 0) return;
+  userSettings.presets.forEach((p, i) => {
+    const btn = document.createElement('button');
+    btn.style.cssText = 'background:var(--primary-light);color:var(--primary);border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;';
+    btn.textContent = `${p.name} (${p.cal})`;
+    btn.addEventListener('click', () => addFromPreset(p.name, p.cal, p.protein||0, p.carbs||0, p.fat||0));
+    el.appendChild(btn);
+  });
 }
 
 function openPresetModal() {
@@ -2056,15 +2062,15 @@ async function loadHistory() {
   try {
     const [foodRes, waterRes, exRes] = await Promise.all([
       pb.collection('food_entries').getList(1, 500, {
-        filter: `user = "${userId()}" && date >= "${oldest}" && date <= "${newest}"`,
+        filter: `user = "${sanitizeFilter(userId())}" && date >= "${sanitizeFilter(oldest)}" && date <= "${sanitizeFilter(newest)}"`,
         sort: '-date',
       }),
       pb.collection('water_entries').getList(1, 500, {
-        filter: `user = "${userId()}" && date >= "${oldest}" && date <= "${newest}"`,
+        filter: `user = "${sanitizeFilter(userId())}" && date >= "${sanitizeFilter(oldest)}" && date <= "${sanitizeFilter(newest)}"`,
         sort: '-date',
       }),
       pb.collection('exercise_entries').getList(1, 500, {
-        filter: `user = "${userId()}" && date >= "${oldest}" && date <= "${newest}"`,
+        filter: `user = "${sanitizeFilter(userId())}" && date >= "${sanitizeFilter(oldest)}" && date <= "${sanitizeFilter(newest)}"`,
         sort: '-date',
       }),
     ]);
@@ -2608,7 +2614,8 @@ async function generateMeals() {
     } else {
       document.getElementById('nutrition-loading').style.display = 'none';
       document.getElementById('nutrition-meals').style.display = 'block';
-      document.getElementById('meal-cards').innerHTML = `<div class="empty">Failed to generate meals: ${data.error || data.message || JSON.stringify(data)}. Try again.</div>`;
+      const errMsg = esc(String(data.error || data.message || 'Unknown error'));
+      document.getElementById('meal-cards').innerHTML = `<div class="empty">Failed to generate meals: ${errMsg}. Try again.</div>`;
     }
   } catch (e) {
     clearInterval(loadingInterval);
@@ -2656,32 +2663,37 @@ function renderMealCards(filterType) {
     return;
   }
 
+  // Store source for index-based access (avoids JSON in HTML attributes)
+  window._mealSource = source;
   el.innerHTML = source.map((m, i) => {
     const isFav = isMealFavorited(m);
-    const dataAttr = `data-meal='${JSON.stringify(m).replace(/'/g, "&#39;")}'`;
     const favClass = isFav ? ' saved' : '';
+    const cal = parseInt(m.calories) || 0;
+    const p = parseInt(m.protein) || 0;
+    const c = parseInt(m.carbs) || 0;
+    const f = parseInt(m.fat) || 0;
     return `<div class="meal-card" onclick="toggleMealDetail('md-${filterType}-${i}')">
-      <button class="meal-fav-btn${favClass}" onclick="event.stopPropagation();toggleFavorite(this)" ${dataAttr}>${isFav ? '&#9829;' : '&#9825;'}</button>
+      <button class="meal-fav-btn${favClass}" onclick="event.stopPropagation();toggleFavByIdx(${i})" data-idx="${i}">${isFav ? '&#9829;' : '&#9825;'}</button>
       <div class="meal-type">${esc(m.type)}</div>
       <div class="meal-name">${esc(m.name)}</div>
       <div class="meal-desc">${esc(m.description || '')}</div>
       <div class="meal-macros">
-        <span style="color:var(--primary);"><b>${m.calories}</b> cal</span>
-        <span style="color:var(--macro-p);">P: ${m.protein}g</span>
-        <span style="color:var(--macro-c);">C: ${m.carbs}g</span>
-        <span style="color:var(--macro-f);">F: ${m.fat}g</span>
+        <span style="color:var(--primary);"><b>${cal}</b> cal</span>
+        <span style="color:var(--macro-p);">P: ${p}g</span>
+        <span style="color:var(--macro-c);">C: ${c}g</span>
+        <span style="color:var(--macro-f);">F: ${f}g</span>
       </div>
       <div class="meal-detail" id="md-${filterType}-${i}">
         <h4>Ingredients</h4>
         <ul>${(m.ingredients || []).map(ing => {
           if (typeof ing === 'object' && ing.item) {
-            return `<li><span>${esc(ing.item)}</span><span class="ing-macros">${ing.cal} cal &middot; P:${ing.p}g C:${ing.c}g F:${ing.f}g</span></li>`;
+            return `<li><span>${esc(ing.item)}</span><span class="ing-macros">${parseInt(ing.cal)||0} cal &middot; P:${parseInt(ing.p)||0}g C:${parseInt(ing.c)||0}g F:${parseInt(ing.f)||0}g</span></li>`;
           }
-          return `<li>${esc(ing)}</li>`;
+          return `<li>${esc(String(ing))}</li>`;
         }).join('')}</ul>
         <h4>Instructions</h4>
-        <ol>${(m.instructions || []).map(step => `<li>${esc(step)}</li>`).join('')}</ol>
-        <button class="meal-add-btn" onclick="event.stopPropagation();logMealDirect(this)" ${dataAttr}>Add to Today's Log</button>
+        <ol>${(m.instructions || []).map(step => `<li>${esc(String(step))}</li>`).join('')}</ol>
+        <button class="meal-add-btn" onclick="event.stopPropagation();logMealByIdx(${i})">Add to Today's Log</button>
       </div>
     </div>`;
   }).join('');
@@ -2692,38 +2704,33 @@ function toggleMealDetail(id) {
   if (detail) detail.classList.toggle('open');
 }
 
-async function toggleFavorite(btn) {
-  const meal = JSON.parse(btn.dataset.meal);
+async function toggleFavByIdx(idx) {
+  const meal = window._mealSource[idx];
+  if (!meal) return;
   const favs = userSettings.favorite_meals || [];
-  const idx = favs.findIndex(f => f.name === meal.name);
-  if (idx >= 0) {
-    favs.splice(idx, 1);
-    btn.classList.remove('saved');
-    btn.innerHTML = '&#9825;';
+  const fidx = favs.findIndex(f => f.name === meal.name);
+  if (fidx >= 0) {
+    favs.splice(fidx, 1);
   } else {
     favs.push(meal);
-    btn.classList.add('saved');
-    btn.innerHTML = '&#9829;';
   }
   userSettings.favorite_meals = favs;
   await saveSettingsToServer();
-  // Re-render if on favorites tab
   const activeFilter = document.querySelector('.meal-filter.active');
-  if (activeFilter && activeFilter.dataset.filter === 'favorites') {
-    renderMealCards('favorites');
-  }
+  renderMealCards(activeFilter ? activeFilter.dataset.filter : 'all');
 }
 
-async function logMealDirect(btn) {
-  const m = JSON.parse(btn.dataset.meal);
+async function logMealByIdx(idx) {
+  const m = window._mealSource[idx];
+  if (!m) return;
   try {
     await pb.collection('food_entries').create({
       user: userId(),
-      name: m.name,
-      calories: m.calories,
-      protein: m.protein || 0,
-      carbs: m.carbs || 0,
-      fat: m.fat || 0,
+      name: String(m.name).substring(0, 200),
+      calories: parseInt(m.calories) || 0,
+      protein: parseInt(m.protein) || 0,
+      carbs: parseInt(m.carbs) || 0,
+      fat: parseInt(m.fat) || 0,
       date: currentDate,
       time: nowTime(),
     });
@@ -2732,8 +2739,6 @@ async function logMealDirect(btn) {
     const rem = getRemainingMacros();
     document.getElementById('nutrition-remaining').textContent =
       `Remaining today: ${rem.cal} cal, ${Math.round(rem.protein)}g P, ${Math.round(rem.carbs)}g C, ${Math.round(rem.fat)}g F`;
-    btn.textContent = 'Added!';
-    btn.style.background = 'var(--text-light)';
   } catch (e) { console.error('Failed to log meal', e); }
 }
 

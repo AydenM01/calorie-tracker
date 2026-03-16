@@ -8,7 +8,7 @@ routerAdd("POST", "/api/parse-food", (c) => {
   }
 
   const body = info.data;
-  const text = body.text || "";
+  const text = String(body.text || "").substring(0, 500).replace(/["\\\n\r]/g, ' ');
 
   if (!text.trim()) {
     return c.json(400, { error: "No text provided" });

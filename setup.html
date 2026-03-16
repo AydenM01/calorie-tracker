@@ -74,9 +74,13 @@
 <script>
 const pb = new PocketBase(window.location.origin);
 
-function log(msg, type) {
+function log(msg, type, isHtml) {
   const area = document.getElementById('status-area');
-  area.innerHTML += `<div class="status ${type}">${msg}</div>`;
+  const div = document.createElement('div');
+  div.className = 'status ' + type;
+  if (isHtml) div.innerHTML = msg;
+  else div.textContent = msg;
+  area.appendChild(div);
 }
 
 async function runSetup() {
@@ -204,7 +208,7 @@ async function runSetup() {
     }
   }
 
-  log('Setup complete! Go to <a href="/">the app</a> to start using it.', 'ok');
+  log('Setup complete! Go to <a href="/">the app</a> to start using it.', 'ok', true);
   pb.authStore.clear();
 }
 </script>

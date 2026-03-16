@@ -7,8 +7,8 @@ routerAdd("POST", "/api/parse-exercise", (c) => {
   }
 
   const body = info.data;
-  const text = body.text || "";
-  const weightLbs = body.weight_lbs || 160;
+  const text = String(body.text || "").substring(0, 500).replace(/["\\\n\r]/g, ' ');
+  const weightLbs = Math.min(Math.max(parseInt(body.weight_lbs) || 160, 50), 700);
 
   if (!text.trim()) {
     return c.json(400, { error: "No text provided" });
