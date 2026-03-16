@@ -1384,7 +1384,7 @@ function switchTab(name) {
 
 // ---- API helpers ----
 function userId() { return pb.authStore.model.id; }
-function sanitizeFilter(val) { return String(val).replace(/["\\]/g, ''); }
+function sanitizeFilter(val) { return String(val).replace(/[^a-zA-Z0-9_\-]/g, ''); }
 
 async function loadSettings() {
   try {
