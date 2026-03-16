@@ -448,6 +448,47 @@
   .macro-prog { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 4px; }
   .macro-prog-fill { height: 100%; border-radius: 2px; transition: width 0.3s; width: 0%; }
 
+  /* Swipeable entries */
+  .swipe-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    margin-bottom: 8px;
+  }
+  .swipe-bg {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 0 18px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .swipe-bg.left {
+    background: var(--danger);
+    justify-content: flex-end;
+    color: #fff;
+  }
+  .swipe-bg.right {
+    background: #d4a843;
+    justify-content: flex-start;
+    color: #0a0a0f;
+  }
+  .swipe-bg.right.unfav {
+    background: var(--text-light);
+    color: #fff;
+  }
+  .swipe-bg.show { opacity: 1; }
+  .swipe-item {
+    position: relative;
+    z-index: 1;
+    transition: transform 0.2s ease;
+    touch-action: pan-y;
+  }
+  .swipe-item.swiping { transition: none; }
+
   /* Goal banner */
   .goal-banner {
     background: var(--primary-light);
@@ -1570,15 +1611,19 @@ function render() {
     foodList.innerHTML = foods.map(f => {
       const macros = [f.protein && `P:${Math.round(f.protein)}`, f.carbs && `C:${Math.round(f.carbs)}`, f.fat && `F:${Math.round(f.fat)}`].filter(Boolean).join(' ');
       const isFav = isFoodFavorited(f.name);
-      return `<li class="entry-item" style="cursor:pointer;" onclick="openEditFoodModal('${f.id}')">
-        <div class="info"><div class="name">${esc(f.name)}</div><div class="time">${f.time || ''}${macros ? ' &middot; ' + macros + 'g' : ''}</div></div>
-        <div class="right">
-          <span class="amount">${f.calories} cal</span>
-          <button class="btn-fav" onclick="event.stopPropagation();toggleFoodFavorite('${esc(f.name).replace(/'/g,"\\'")}',${f.calories},${f.protein||0},${f.carbs||0},${f.fat||0})" style="background:none;border:none;font-size:18px;cursor:pointer;padding:4px;color:${isFav ? '#d4a843' : 'var(--text-light)'};">${isFav ? '&#9733;' : '&#9734;'}</button>
-          <button class="btn-del" onclick="event.stopPropagation();deleteFood('${f.id}')">&times;</button>
+      return `<div class="swipe-container" data-id="${f.id}" data-name="${esc(f.name)}" data-cal="${f.calories}" data-protein="${f.protein||0}" data-carbs="${f.carbs||0}" data-fat="${f.fat||0}" data-fav="${isFav}">
+        <div class="swipe-bg left"><span>Delete</span></div>
+        <div class="swipe-bg right ${isFav ? 'unfav' : ''}"><span>${isFav ? 'Unfavorite' : 'Favorite'}</span></div>
+        <div class="entry-item swipe-item" style="cursor:pointer;" onclick="openEditFoodModal('${f.id}')">
+          <div class="info">
+            <div class="name">${isFav ? '&#9733; ' : ''}${esc(f.name)}</div>
+            <div class="time">${f.time || ''}${macros ? ' &middot; ' + macros + 'g' : ''}</div>
+          </div>
+          <div class="right"><span class="amount">${f.calories} cal</span></div>
         </div>
-      </li>`;
+      </div>`;
     }).join('');
+    initSwipeHandlers();
   }
 
   // Water list
@@ -2363,6 +2408,87 @@ async function saveAiExercises() {
     await loadDayData(currentDate);
     render();
   } catch (e) { console.error('Failed to save exercises', e); }
+}
+
+// ---- Swipe Handlers ----
+function initSwipeHandlers() {
+  document.querySelectorAll('.swipe-container').forEach(container => {
+    const item = container.querySelector('.swipe-item');
+    const bgLeft = container.querySelector('.swipe-bg.left');
+    const bgRight = container.querySelector('.swipe-bg.right');
+    let startX = 0, currentX = 0, swiping = false;
+    const THRESHOLD = 80;
+
+    function onStart(e) {
+      const touch = e.touches ? e.touches[0] : e;
+      startX = touch.clientX;
+      currentX = 0;
+      swiping = true;
+      item.classList.add('swiping');
+    }
+
+    function onMove(e) {
+      if (!swiping) return;
+      const touch = e.touches ? e.touches[0] : e;
+      currentX = touch.clientX - startX;
+      // Dampen the swipe
+      const dampened = currentX * 0.6;
+      item.style.transform = `translateX(${dampened}px)`;
+      // Show appropriate background
+      if (currentX < -30) {
+        bgLeft.classList.add('show');
+        bgRight.classList.remove('show');
+      } else if (currentX > 30) {
+        bgRight.classList.add('show');
+        bgLeft.classList.remove('show');
+      } else {
+        bgLeft.classList.remove('show');
+        bgRight.classList.remove('show');
+      }
+    }
+
+    function onEnd() {
+      if (!swiping) return;
+      swiping = false;
+      item.classList.remove('swiping');
+
+      if (currentX < -THRESHOLD) {
+        // Swipe left — delete
+        item.style.transform = `translateX(-100%)`;
+        container.style.maxHeight = container.offsetHeight + 'px';
+        setTimeout(() => {
+          container.style.maxHeight = '0';
+          container.style.overflow = 'hidden';
+          container.style.marginBottom = '0';
+          container.style.transition = 'max-height 0.2s, margin-bottom 0.2s';
+        }, 100);
+        setTimeout(() => {
+          const id = container.dataset.id;
+          deleteFood(id);
+        }, 300);
+      } else if (currentX > THRESHOLD) {
+        // Swipe right — toggle favorite
+        item.style.transform = `translateX(100%)`;
+        setTimeout(() => {
+          const { name, cal, protein, carbs, fat } = container.dataset;
+          toggleFoodFavorite(name, parseInt(cal), parseFloat(protein), parseFloat(carbs), parseFloat(fat));
+        }, 200);
+      } else {
+        // Snap back
+        item.style.transform = 'translateX(0)';
+        bgLeft.classList.remove('show');
+        bgRight.classList.remove('show');
+      }
+    }
+
+    item.addEventListener('touchstart', onStart, { passive: true });
+    item.addEventListener('touchmove', onMove, { passive: true });
+    item.addEventListener('touchend', onEnd);
+    // Mouse support for desktop
+    item.addEventListener('mousedown', onStart);
+    document.addEventListener('mousemove', (e) => { if (swiping) onMove(e); });
+    document.addEventListener('mouseup', () => { if (swiping) onEnd(); });
+  });
 }
 
 // ---- Barcode Scanner ----
