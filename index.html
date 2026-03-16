@@ -45,15 +45,23 @@
       --macro-f: #90a0f0;
     }
     body { color-scheme: dark; }
-    .auth-form input, .modal input, .modal select, .page input, .page select,
-    .settings-row input, .ai-item .ai-item-macros input {
-      background: var(--bg);
-      color: var(--text);
+    input, select, textarea {
+      background: var(--bg) !important;
+      color: var(--text) !important;
       border-color: var(--border);
+      -webkit-text-fill-color: var(--text) !important;
     }
-    .auth-form input:focus, .modal input:focus, .modal select:focus,
-    .page input:focus, .page select:focus, .settings-row input:focus {
-      background: var(--card);
+    input:focus, select:focus, textarea:focus {
+      background: var(--card) !important;
+      -webkit-text-fill-color: var(--text) !important;
+    }
+    /* Override browser autofill styles */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+      -webkit-box-shadow: 0 0 0 1000px var(--bg) inset !important;
+      -webkit-text-fill-color: var(--text) !important;
+      caret-color: var(--text) !important;
     }
     .summary-card, .entry-item, .macro-item, .meal-card, .ai-item {
       box-shadow: 0 1px 4px rgba(0,0,0,0.2);
