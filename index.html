@@ -1461,29 +1461,29 @@ async function saveSettingsToServer() {
 }
 
 async function loadDayData(date) {
+  const uid = sanitizeFilter(userId());
+  const d = sanitizeFilter(date);
+  const filter = `user = "${uid}" && date = "${d}"`;
+
+  // Load food and water (required), exercise (optional - collection may not exist)
   try {
-    const [foodRes, waterRes, exRes] = await Promise.all([
-      pb.collection('food_entries').getList(1, 200, {
-        filter: `user = "${sanitizeFilter(userId())}" && date = "${sanitizeFilter(date)}"`,
-        sort: 'created',
-      }),
-      pb.collection('water_entries').getList(1, 200, {
-        filter: `user = "${sanitizeFilter(userId())}" && date = "${sanitizeFilter(date)}"`,
-        sort: 'created',
-      }),
-      pb.collection('exercise_entries').getList(1, 200, {
-        filter: `user = "${sanitizeFilter(userId())}" && date = "${sanitizeFilter(date)}"`,
-        sort: 'created',
-      }),
+    const [foodRes, waterRes] = await Promise.all([
+      pb.collection('food_entries').getList(1, 200, { filter, sort: 'created' }),
+      pb.collection('water_entries').getList(1, 200, { filter, sort: 'created' }),
     ]);
     foodCache[date] = foodRes.items;
     waterCache[date] = waterRes.items;
-    exerciseCache[date] = exRes.items;
   } catch (e) {
-    console.error('Failed to load day data', e, JSON.stringify(e.response || {}));
+    console.error('Failed to load day data', e);
     if (!foodCache[date]) foodCache[date] = [];
     if (!waterCache[date]) waterCache[date] = [];
-    if (!exerciseCache[date]) exerciseCache[date] = [];
+  }
+
+  try {
+    const exRes = await pb.collection('exercise_entries').getList(1, 200, { filter, sort: 'created' });
+    exerciseCache[date] = exRes.items;
+  } catch (e) {
+    exerciseCache[date] = [];
   }
 }
 
