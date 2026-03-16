@@ -42,7 +42,7 @@
 </head>
 <body>
   <h1>Daily Tracker Setup</h1>
-  <p>Run this once after deploying to create the database collections.</p>
+  <p>Run this to create or update database collections. Safe to re-run — existing data is preserved, only missing fields are added.</p>
 
   <div class="card">
     <div class="step">
@@ -58,7 +58,7 @@
       <input type="password" id="admin-pass" placeholder="Your admin password">
     </div>
 
-    <button onclick="runSetup()" id="setup-btn">Create Collections</button>
+    <button onclick="runSetup()" id="setup-btn">Run Migration</button>
     <div id="status-area"></div>
   </div>
 
@@ -98,18 +98,6 @@ async function runSetup() {
     log('Auth failed: ' + (e.message || e), 'err');
     btn.disabled = false;
     return;
-  }
-
-  // Delete existing collections if re-running
-  for (const name of ['food_entries', 'water_entries', 'user_settings', 'weigh_ins', 'exercise_entries']) {
-    try {
-      const existing = await pb.collections.getOne(name);
-      log(`Deleting existing "${name}"...`, 'info');
-      await pb.collections.delete(existing.id);
-      log(`Deleted "${name}".`, 'ok');
-    } catch (e) {
-      // doesn't exist, fine
-    }
   }
 
   const authRule = '@request.auth.id = user';
@@ -200,12 +188,42 @@ async function runSetup() {
 
   for (const col of collections) {
     try {
-      log(`Creating "${col.name}"...`, 'info');
-      await pb.collections.create(col);
-      log(`"${col.name}" created!`, 'ok');
+      // Check if collection exists
+      let existing = null;
+      try {
+        existing = await pb.collections.getOne(col.name);
+      } catch (e) {
+        // doesn't exist
+      }
+
+      if (existing) {
+        // Collection exists — merge schema (add missing fields, don't remove existing ones)
+        const existingFieldNames = new Set((existing.schema || []).map(f => f.name));
+        const newFields = col.schema.filter(f => !existingFieldNames.has(f.name));
+
+        if (newFields.length === 0) {
+          log(`"${col.name}" — up to date (${existingFieldNames.size} fields)`, 'ok');
+        } else {
+          // Merge: keep all existing fields + add new ones
+          const mergedSchema = [...(existing.schema || []), ...newFields];
+          await pb.collections.update(existing.id, {
+            schema: mergedSchema,
+            listRule: col.listRule,
+            viewRule: col.viewRule,
+            createRule: col.createRule,
+            updateRule: col.updateRule,
+            deleteRule: col.deleteRule,
+          });
+          log(`"${col.name}" — added ${newFields.length} new field(s): ${newFields.map(f => f.name).join(', ')}`, 'ok');
+        }
+      } else {
+        // Collection doesn't exist — create it
+        await pb.collections.create(col);
+        log(`"${col.name}" — created with ${col.schema.length} fields`, 'ok');
+      }
     } catch (e) {
       const msg = e.response?.data ? JSON.stringify(e.response.data) : (e.response?.message || e.message || e);
-      log(`Failed to create "${col.name}": ${msg}`, 'err');
+      log(`Failed to migrate "${col.name}": ${msg}`, 'err');
     }
   }
 
