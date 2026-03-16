@@ -23,7 +23,11 @@ routerAdd("POST", "/api/nutritionist", (c) => {
   }
 
   const seed = Math.floor(Math.random() * 100000);
-  const prompt = `You are a creative nutritionist AI. Generate ${mealType === "any" ? "4 meals (1 breakfast, 1 lunch, 1 dinner, 1 snack)" : "3 " + mealType + " options"} that fit within these remaining daily macros. Be creative and varied — suggest different meals each time (seed: ${seed}):
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const today = dayNames[new Date().getDay()];
+  const themes = ['comfort food','quick & easy','meal prep friendly','restaurant-quality','budget-friendly','one-pot meals','high protein','light & fresh','international flavors','seasonal ingredients'];
+  const theme = themes[Math.floor(Math.random() * themes.length)];
+  const prompt = `You are a creative home chef and nutritionist. Today is ${today}. Theme: ${theme}. Generate ${mealType === "any" ? "4 unique meals (1 breakfast, 1 lunch, 1 dinner, 1 snack)" : "3 " + mealType + " options"} that fit within these remaining daily macros. IMPORTANT: Be highly creative and suggest completely different meals each time. Avoid generic options like plain chicken and rice. Think of specific dishes with real recipe names. (variation seed: ${seed}):
 - Calories: ${remainingCal} cal remaining
 - Protein: ${remainingProtein}g remaining
 - Carbs: ${remainingCarbs}g remaining
@@ -58,14 +62,14 @@ The total calories/protein/carbs/fat for the meal MUST equal the sum of all ingr
   let res;
   try {
     res = $http.send({
-      url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey,
+      url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey,
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 1.2,
-          maxOutputTokens: 2048,
+          temperature: 1.5,
+          maxOutputTokens: 4096,
         },
       }),
     });
