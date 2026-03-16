@@ -66,6 +66,7 @@
     box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   }
   .date-nav button:active { transform: scale(0.95); }
+  .date-nav button:disabled { opacity: 0.25; pointer-events: none; }
   .date-nav span {
     font-size: 15px;
     font-weight: 600;
@@ -652,7 +653,7 @@
     <div class="date-nav">
       <button onclick="changeDate(-1)">&larr;</button>
       <span id="date-display"></span>
-      <button onclick="changeDate(1)">&rarr;</button>
+      <button onclick="changeDate(1)" id="date-fwd">&rarr;</button>
     </div>
   </div>
 
@@ -1448,6 +1449,7 @@ function render() {
   const exercises = exerciseCache[currentDate] || [];
 
   document.getElementById('date-display').textContent = formatDate(currentDate);
+  document.getElementById('date-fwd').disabled = (currentDate >= todayStr());
 
   const calEaten = foods.reduce((s, f) => s + (f.calories || 0), 0);
   const calBurned = exercises.reduce((s, e) => s + (e.calories_burned || 0), 0);
