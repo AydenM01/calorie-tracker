@@ -658,9 +658,10 @@
 
   <div class="summary">
     <div class="summary-card cal">
-      <div class="label">Calories</div>
+      <div class="label">Net Calories</div>
       <div class="value" id="cal-total">0</div>
       <div class="goal">of <span id="cal-goal-display">2000</span> goal</div>
+      <div id="cal-detail" style="font-size:11px;color:var(--text-light);margin-top:2px;"></div>
       <div class="progress-wrap"><div class="progress-bar"><div class="fill" id="cal-bar"></div></div></div>
     </div>
     <div class="summary-card water">
@@ -717,6 +718,15 @@
       </div>
     </div>
     <ul class="entry-list" id="food-list"></ul>
+  </div>
+
+  <!-- Exercise section -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Exercise</h2>
+      <button class="btn-add" onclick="openExerciseModal()" style="background:#e07b4c;">+ Log</button>
+    </div>
+    <ul class="entry-list" id="exercise-list"></ul>
   </div>
 
   <!-- Weigh-in section -->
@@ -1155,6 +1165,42 @@
   </div>
 </div>
 
+<!-- ======== EXERCISE MODAL ======== -->
+<div class="modal-overlay" id="exercise-modal">
+  <div class="modal" style="max-height:85dvh;overflow-y:auto;">
+    <h3>Log Exercise</h3>
+
+    <!-- AI input first -->
+    <div id="exercise-ai-view">
+      <label>What did you do?</label>
+      <input type="text" id="exercise-ai-input" placeholder="e.g. 30 min run, 45 min yoga" autocomplete="off">
+      <div id="exercise-ai-status" style="display:none;font-size:13px;color:var(--text-light);text-align:center;margin-bottom:8px;"></div>
+      <button class="btn-add" id="exercise-ai-btn" onclick="aiParseExercise()" style="width:100%;padding:14px;background:#e07b4c;">Estimate Calories Burned</button>
+      <div style="text-align:center;margin-top:12px;">
+        <a onclick="showManualExercise()" style="font-size:14px;color:var(--primary);font-weight:600;cursor:pointer;">Enter manually instead</a>
+      </div>
+    </div>
+
+    <!-- AI breakdown -->
+    <div id="exercise-ai-items" style="display:none;"></div>
+
+    <!-- Manual entry -->
+    <div id="exercise-manual-fields" style="display:none;">
+      <label>Exercise</label>
+      <input type="text" id="exercise-name" placeholder="e.g. Running" autocomplete="off">
+      <div class="settings-row">
+        <div><label>Calories Burned</label><input type="number" id="exercise-cal" placeholder="e.g. 300" inputmode="numeric"></div>
+        <div><label>Duration (min)</label><input type="number" id="exercise-dur" placeholder="e.g. 30" inputmode="numeric"></div>
+      </div>
+    </div>
+
+    <div class="modal-btns" id="exercise-modal-btns" style="display:none;">
+      <button class="cancel" onclick="closeExerciseModal()">Cancel</button>
+      <button class="save" id="exercise-save-btn" onclick="saveExercise()" style="background:#e07b4c;">Add</button>
+    </div>
+  </div>
+</div>
+
 <!-- ======== WEIGH-IN MODAL ======== -->
 <div class="modal-overlay" id="weighin-modal">
   <div class="modal">
@@ -1180,6 +1226,7 @@ let currentDate = todayStr();
 let settingsRecordId = null;
 let foodCache = {};   // date -> array of records
 let waterCache = {};  // date -> array of records
+let exerciseCache = {}; // date -> array of records
 let weighInCache = [];  // recent weigh-ins sorted by date desc
 let authMode = 'login';
 
@@ -1369,7 +1416,7 @@ async function saveSettingsToServer() {
 
 async function loadDayData(date) {
   try {
-    const [foodRes, waterRes] = await Promise.all([
+    const [foodRes, waterRes, exRes] = await Promise.all([
       pb.collection('food_entries').getList(1, 200, {
         filter: `user = "${userId()}" && date = "${date}"`,
         sort: 'created',
@@ -1378,14 +1425,19 @@ async function loadDayData(date) {
         filter: `user = "${userId()}" && date = "${date}"`,
         sort: 'created',
       }),
+      pb.collection('exercise_entries').getList(1, 200, {
+        filter: `user = "${userId()}" && date = "${date}"`,
+        sort: 'created',
+      }),
     ]);
-    console.log('Loaded food:', foodRes.items.length, 'water:', waterRes.items.length);
     foodCache[date] = foodRes.items;
     waterCache[date] = waterRes.items;
+    exerciseCache[date] = exRes.items;
   } catch (e) {
     console.error('Failed to load day data', e, JSON.stringify(e.response || {}));
     if (!foodCache[date]) foodCache[date] = [];
     if (!waterCache[date]) waterCache[date] = [];
+    if (!exerciseCache[date]) exerciseCache[date] = [];
   }
 }
 
@@ -1393,18 +1445,22 @@ async function loadDayData(date) {
 function render() {
   const foods = foodCache[currentDate] || [];
   const waters = waterCache[currentDate] || [];
+  const exercises = exerciseCache[currentDate] || [];
 
   document.getElementById('date-display').textContent = formatDate(currentDate);
 
-  const calTotal = foods.reduce((s, f) => s + (f.calories || 0), 0);
+  const calEaten = foods.reduce((s, f) => s + (f.calories || 0), 0);
+  const calBurned = exercises.reduce((s, e) => s + (e.calories_burned || 0), 0);
+  const calNet = calEaten - calBurned;
   const proteinTotal = foods.reduce((s, f) => s + (f.protein || 0), 0);
   const carbsTotal = foods.reduce((s, f) => s + (f.carbs || 0), 0);
   const fatTotal = foods.reduce((s, f) => s + (f.fat || 0), 0);
   const waterTotal = waters.reduce((s, w) => s + (w.oz || 0), 0);
 
-  document.getElementById('cal-total').textContent = calTotal;
+  document.getElementById('cal-total').textContent = calNet;
   document.getElementById('cal-goal-display').textContent = userSettings.cal_goal;
-  document.getElementById('cal-bar').style.width = Math.min(100, (calTotal / userSettings.cal_goal) * 100) + '%';
+  document.getElementById('cal-bar').style.width = Math.min(100, (calNet / userSettings.cal_goal) * 100) + '%';
+  document.getElementById('cal-detail').textContent = calBurned > 0 ? `${calEaten} eaten - ${calBurned} burned` : '';
 
   document.getElementById('water-total').textContent = waterTotal + ' oz';
   document.getElementById('water-goal-display').textContent = userSettings.water_goal;
@@ -1448,6 +1504,20 @@ function render() {
         <div class="right"><button class="btn-del" onclick="deleteWater('${w.id}')">&times;</button></div>
       </li>
     `).join('');
+  }
+
+  // Exercise list
+  const exerciseList = document.getElementById('exercise-list');
+  if (exercises.length === 0) {
+    exerciseList.innerHTML = '<div class="empty">No exercise logged yet</div>';
+  } else {
+    exerciseList.innerHTML = exercises.map(e => {
+      const dur = e.duration_min ? ` &middot; ${e.duration_min} min` : '';
+      return `<li class="entry-item">
+        <div class="info"><div class="name">${esc(e.name)}</div><div class="time">${e.time || ''}${dur}</div></div>
+        <div class="right"><span class="amount" style="color:#e07b4c;">-${e.calories_burned} cal</span><button class="btn-del" onclick="deleteExercise('${e.id}')">&times;</button></div>
+      </li>`;
+    }).join('');
   }
 
   // Settings inputs
@@ -1936,7 +2006,7 @@ async function loadHistory() {
   const oldest = dates[dates.length - 1];
   const newest = dates[0];
   try {
-    const [foodRes, waterRes] = await Promise.all([
+    const [foodRes, waterRes, exRes] = await Promise.all([
       pb.collection('food_entries').getList(1, 500, {
         filter: `user = "${userId()}" && date >= "${oldest}" && date <= "${newest}"`,
         sort: '-date',
@@ -1945,10 +2015,14 @@ async function loadHistory() {
         filter: `user = "${userId()}" && date >= "${oldest}" && date <= "${newest}"`,
         sort: '-date',
       }),
+      pb.collection('exercise_entries').getList(1, 500, {
+        filter: `user = "${userId()}" && date >= "${oldest}" && date <= "${newest}"`,
+        sort: '-date',
+      }),
     ]);
 
     // Group by date
-    const calByDate = {}, waterByDate = {}, pByDate = {}, cByDate = {}, fByDate = {};
+    const calByDate = {}, waterByDate = {}, pByDate = {}, cByDate = {}, fByDate = {}, burnedByDate = {};
     foodRes.items.forEach(f => {
       calByDate[f.date] = (calByDate[f.date] || 0) + f.calories;
       pByDate[f.date] = (pByDate[f.date] || 0) + (f.protein || 0);
@@ -1956,10 +2030,11 @@ async function loadHistory() {
       fByDate[f.date] = (fByDate[f.date] || 0) + (f.fat || 0);
     });
     waterRes.items.forEach(w => { waterByDate[w.date] = (waterByDate[w.date] || 0) + w.oz; });
+    exRes.items.forEach(e => { burnedByDate[e.date] = (burnedByDate[e.date] || 0) + e.calories_burned; });
 
     window._historyData = dates
-      .map(ds => ({ ds, cal: calByDate[ds] || 0, water: waterByDate[ds] || 0, p: Math.round(pByDate[ds] || 0), c: Math.round(cByDate[ds] || 0), f: Math.round(fByDate[ds] || 0) }))
-      .filter(d => d.cal > 0 || d.water > 0);
+      .map(ds => ({ ds, cal: calByDate[ds] || 0, burned: burnedByDate[ds] || 0, water: waterByDate[ds] || 0, p: Math.round(pByDate[ds] || 0), c: Math.round(cByDate[ds] || 0), f: Math.round(fByDate[ds] || 0) }))
+      .filter(d => d.cal > 0 || d.water > 0 || d.burned > 0);
   } catch (e) {
     console.error('Failed to load history', e);
     window._historyData = [];
@@ -1977,12 +2052,153 @@ function renderHistory() {
     <div class="entry-item" style="cursor:pointer;" onclick="currentDate='${d.ds}';switchTab('track');">
       <div class="info"><div class="name">${formatDate(d.ds)}</div><div class="time">${d.ds}</div></div>
       <div class="right" style="gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-        <span style="color:var(--primary);font-weight:600;font-size:14px;">${d.cal} cal</span>
+        <span style="color:var(--primary);font-weight:600;font-size:14px;">${d.cal - d.burned} cal</span>
+        ${d.burned ? '<span style="color:#e07b4c;font-weight:600;font-size:12px;">-' + d.burned + '</span>' : ''}
         <span style="color:var(--water);font-weight:600;font-size:13px;">${d.water}oz</span>
-        <span style="font-size:11px;color:var(--text-light);">P:${d.p} C:${d.c} F:${d.f}</span>
       </div>
     </div>
   `).join('');
+}
+
+// ---- Exercise ----
+let aiParsedExercises = [];
+
+function openExerciseModal() {
+  document.getElementById('exercise-ai-input').value = '';
+  document.getElementById('exercise-ai-status').style.display = 'none';
+  document.getElementById('exercise-ai-view').style.display = 'block';
+  document.getElementById('exercise-ai-items').style.display = 'none';
+  document.getElementById('exercise-manual-fields').style.display = 'none';
+  document.getElementById('exercise-modal-btns').style.display = 'none';
+  aiParsedExercises = [];
+  document.getElementById('exercise-modal').classList.add('open');
+  document.getElementById('exercise-ai-input').focus();
+}
+
+function closeExerciseModal() {
+  document.getElementById('exercise-modal').classList.remove('open');
+}
+
+function showManualExercise() {
+  document.getElementById('exercise-ai-view').style.display = 'none';
+  document.getElementById('exercise-ai-items').style.display = 'none';
+  document.getElementById('exercise-manual-fields').style.display = 'block';
+  document.getElementById('exercise-modal-btns').style.display = 'flex';
+  document.getElementById('exercise-save-btn').textContent = 'Add';
+  document.getElementById('exercise-save-btn').setAttribute('onclick', 'saveExercise()');
+  document.getElementById('exercise-name').value = '';
+  document.getElementById('exercise-cal').value = '';
+  document.getElementById('exercise-dur').value = '';
+  document.getElementById('exercise-name').focus();
+}
+
+async function saveExercise() {
+  const name = document.getElementById('exercise-name').value.trim();
+  const cal = parseInt(document.getElementById('exercise-cal').value);
+  if (!name || isNaN(cal) || cal < 0) return;
+  const dur = parseInt(document.getElementById('exercise-dur').value) || 0;
+  try {
+    await pb.collection('exercise_entries').create({
+      user: userId(), name, calories_burned: cal, duration_min: dur,
+      date: currentDate, time: nowTime(),
+    });
+    closeExerciseModal();
+    await loadDayData(currentDate);
+    render();
+  } catch (e) { console.error('Failed to save exercise', e); }
+}
+
+async function deleteExercise(id) {
+  try {
+    await pb.collection('exercise_entries').delete(id);
+    await loadDayData(currentDate);
+    render();
+  } catch (e) { console.error('Failed to delete exercise', e); }
+}
+
+async function aiParseExercise() {
+  const text = document.getElementById('exercise-ai-input').value.trim();
+  if (!text) return;
+  const btn = document.getElementById('exercise-ai-btn');
+  const status = document.getElementById('exercise-ai-status');
+  btn.disabled = true;
+  btn.textContent = '...';
+  status.textContent = 'Estimating calories burned...';
+  status.style.display = 'block';
+
+  const weight = weighInCache.length > 0 ? weighInCache[0].weight : (userSettings.current_weight || 160);
+
+  try {
+    const res = await fetch('/api/parse-exercise', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': pb.authStore.token },
+      body: JSON.stringify({ text, weight_lbs: weight }),
+    });
+    const data = await res.json();
+    if (data.items && data.items.length > 0) {
+      aiParsedExercises = data.items;
+      renderAiExercises();
+      status.textContent = 'Review and tap Add All.';
+    } else {
+      status.textContent = 'Error: ' + (data.error || 'Could not parse');
+    }
+  } catch (e) {
+    status.textContent = 'Failed to connect. Try again.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Estimate Calories Burned';
+  }
+}
+
+function renderAiExercises() {
+  const el = document.getElementById('exercise-ai-items');
+  document.getElementById('exercise-ai-view').style.display = 'none';
+  document.getElementById('exercise-manual-fields').style.display = 'none';
+  document.getElementById('exercise-modal-btns').style.display = 'flex';
+  document.getElementById('exercise-save-btn').textContent = 'Add All';
+  document.getElementById('exercise-save-btn').setAttribute('onclick', 'saveAiExercises()');
+  el.style.display = 'block';
+
+  el.innerHTML = aiParsedExercises.map((item, i) => `
+    <div class="ai-item">
+      <div class="ai-item-name">
+        <span>${esc(item.name)}</span>
+        <button class="btn-del" onclick="aiParsedExercises.splice(${i},1);renderAiExercises()">&times;</button>
+      </div>
+      <div class="ai-item-macros">
+        <input type="number" value="${item.calories_burned}" onchange="aiParsedExercises[${i}].calories_burned=parseInt(this.value)||0;updateExTotal()" inputmode="numeric" title="Cal burned" style="color:#e07b4c;">
+        <input type="number" value="${item.duration_min}" onchange="aiParsedExercises[${i}].duration_min=parseInt(this.value)||0" inputmode="numeric" title="Minutes">
+      </div>
+      <div style="display:flex;gap:6px;font-size:10px;color:var(--text-light);margin-top:3px;padding:0 2px;">
+        <span style="flex:1;text-align:center;">Cal burned</span>
+        <span style="flex:1;text-align:center;">Minutes</span>
+      </div>
+    </div>
+  `).join('') + `<div class="ai-item-total" id="ex-total"><span>Total</span><span>${aiParsedExercises.reduce((s,e) => s + (e.calories_burned||0), 0)} cal burned</span></div>`;
+}
+
+function updateExTotal() {
+  const el = document.getElementById('ex-total');
+  if (el) el.innerHTML = `<span>Total</span><span>${aiParsedExercises.reduce((s,e) => s + (e.calories_burned||0), 0)} cal burned</span>`;
+}
+
+async function saveAiExercises() {
+  if (aiParsedExercises.length === 0) return;
+  try {
+    for (const item of aiParsedExercises) {
+      await pb.collection('exercise_entries').create({
+        user: userId(),
+        name: item.name,
+        calories_burned: parseInt(item.calories_burned) || 0,
+        duration_min: parseInt(item.duration_min) || 0,
+        date: currentDate,
+        time: nowTime(),
+      });
+    }
+    closeExerciseModal();
+    await loadDayData(currentDate);
+    render();
+  } catch (e) { console.error('Failed to save exercises', e); }
 }
 
 // ---- Barcode Scanner ----
@@ -2200,6 +2416,8 @@ document.getElementById('auth-username').addEventListener('keydown', e => { if (
 // ---- Close modals on overlay click ----
 document.getElementById('food-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeFoodModal(); });
 document.getElementById('preset-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closePresetModal(); });
+document.getElementById('exercise-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeExerciseModal(); });
+document.getElementById('exercise-ai-input').addEventListener('keydown', e => { if (e.key === 'Enter') aiParseExercise(); });
 document.getElementById('weighin-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeWeighInModal(); });
 document.getElementById('scanner-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeScanner(); });
 document.getElementById('scanner-servings')?.addEventListener('keydown', e => { if (e.key === 'Enter') addScannedFood(); });
@@ -2270,12 +2488,14 @@ function initNutritionTab() {
 
 function getRemainingMacros() {
   const foods = foodCache[currentDate] || [];
+  const exercises = exerciseCache[currentDate] || [];
   const calEaten = foods.reduce((s, f) => s + (f.calories || 0), 0);
+  const calBurned = exercises.reduce((s, e) => s + (e.calories_burned || 0), 0);
   const pEaten = foods.reduce((s, f) => s + (f.protein || 0), 0);
   const cEaten = foods.reduce((s, f) => s + (f.carbs || 0), 0);
   const fEaten = foods.reduce((s, f) => s + (f.fat || 0), 0);
   return {
-    cal: Math.max(0, (userSettings.cal_goal || 2000) - calEaten),
+    cal: Math.max(0, (userSettings.cal_goal || 2000) - calEaten + calBurned),
     protein: Math.max(0, (userSettings.protein_goal || 150) - pEaten),
     carbs: Math.max(0, (userSettings.carbs_goal || 200) - cEaten),
     fat: Math.max(0, (userSettings.fat_goal || 60) - fEaten),
