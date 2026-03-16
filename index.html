@@ -1131,6 +1131,27 @@
   </button>
 </div>
 
+<!-- ======== EDIT FOOD MODAL ======== -->
+<div class="modal-overlay" id="edit-food-modal">
+  <div class="modal" style="max-height:85dvh;overflow-y:auto;">
+    <h3>Edit Food Entry</h3>
+    <input type="hidden" id="edit-food-id">
+    <label>Name</label>
+    <input type="text" id="edit-food-name" autocomplete="off">
+    <label>Calories</label>
+    <input type="number" id="edit-food-cal" inputmode="decimal">
+    <div class="settings-row">
+      <div><label>Protein (g)</label><input type="number" id="edit-food-protein" inputmode="decimal"></div>
+      <div><label>Carbs (g)</label><input type="number" id="edit-food-carbs" inputmode="decimal"></div>
+      <div><label>Fat (g)</label><input type="number" id="edit-food-fat" inputmode="decimal"></div>
+    </div>
+    <div class="modal-btns" style="margin-top:12px;">
+      <button class="cancel" onclick="closeEditFoodModal()">Cancel</button>
+      <button class="save" onclick="updateFood()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- ======== FOOD MODAL ======== -->
 <div class="modal-overlay" id="food-modal">
   <div class="modal" style="max-height:85dvh;overflow-y:auto;">
@@ -1546,9 +1567,9 @@ function render() {
   } else {
     foodList.innerHTML = foods.map(f => {
       const macros = [f.protein && `P:${Math.round(f.protein)}`, f.carbs && `C:${Math.round(f.carbs)}`, f.fat && `F:${Math.round(f.fat)}`].filter(Boolean).join(' ');
-      return `<li class="entry-item">
+      return `<li class="entry-item" style="cursor:pointer;" onclick="openEditFoodModal('${f.id}')">
         <div class="info"><div class="name">${esc(f.name)}</div><div class="time">${f.time || ''}${macros ? ' &middot; ' + macros + 'g' : ''}</div></div>
-        <div class="right"><span class="amount">${f.calories} cal</span><button class="btn-del" onclick="deleteFood('${f.id}')">&times;</button></div>
+        <div class="right"><span class="amount">${f.calories} cal</span><button class="btn-del" onclick="event.stopPropagation();deleteFood('${f.id}')">&times;</button></div>
       </li>`;
     }).join('');
   }
@@ -1960,6 +1981,40 @@ async function deleteFood(id) {
     await loadDayData(currentDate);
     render();
   } catch (e) { console.error('Failed to delete food', e); }
+}
+
+function openEditFoodModal(id) {
+  const foods = foodCache[currentDate] || [];
+  const food = foods.find(f => f.id === id);
+  if (!food) return;
+  document.getElementById('edit-food-id').value = id;
+  document.getElementById('edit-food-name').value = food.name || '';
+  document.getElementById('edit-food-cal').value = food.calories || '';
+  document.getElementById('edit-food-protein').value = food.protein || '';
+  document.getElementById('edit-food-carbs').value = food.carbs || '';
+  document.getElementById('edit-food-fat').value = food.fat || '';
+  document.getElementById('edit-food-modal').classList.add('open');
+  document.getElementById('edit-food-name').focus();
+}
+
+function closeEditFoodModal() {
+  document.getElementById('edit-food-modal').classList.remove('open');
+}
+
+async function updateFood() {
+  const id = document.getElementById('edit-food-id').value;
+  const name = document.getElementById('edit-food-name').value.trim();
+  const cal = parseInt(document.getElementById('edit-food-cal').value);
+  if (!name || isNaN(cal) || cal < 0) return;
+  const protein = parseFloat(document.getElementById('edit-food-protein').value) || 0;
+  const carbs = parseFloat(document.getElementById('edit-food-carbs').value) || 0;
+  const fat = parseFloat(document.getElementById('edit-food-fat').value) || 0;
+  try {
+    await pb.collection('food_entries').update(id, { name, calories: cal, protein, carbs, fat });
+    closeEditFoodModal();
+    await loadDayData(currentDate);
+    render();
+  } catch (e) { console.error('Failed to update food', e); }
 }
 
 async function addFromPreset(name, cal, protein, carbs, fat) {
@@ -2482,6 +2537,8 @@ document.getElementById('auth-username').addEventListener('keydown', e => { if (
 
 // ---- Close modals on overlay click ----
 document.getElementById('food-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeFoodModal(); });
+document.getElementById('edit-food-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditFoodModal(); });
+document.getElementById('edit-food-cal').addEventListener('keydown', e => { if (e.key === 'Enter') updateFood(); });
 document.getElementById('preset-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closePresetModal(); });
 document.getElementById('exercise-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeExerciseModal(); });
 document.getElementById('exercise-ai-input').addEventListener('keydown', e => { if (e.key === 'Enter') aiParseExercise(); });
