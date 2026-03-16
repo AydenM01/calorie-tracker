@@ -1055,18 +1055,22 @@
     <h3 id="food-modal-title">Add Food</h3>
     <div id="preset-shortcuts" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
 
-    <!-- AI input -->
-    <div style="display:flex;gap:8px;margin-bottom:6px;">
-      <input type="text" id="food-ai-input" placeholder="e.g. 2 eggs and toast with butter" autocomplete="off" style="flex:1;">
-      <button class="btn-add" id="food-ai-btn" onclick="aiParseFood()" style="white-space:nowrap;">AI Fill</button>
+    <!-- AI input (shown first) -->
+    <div id="food-ai-view">
+      <label>What did you eat?</label>
+      <input type="text" id="food-ai-input" placeholder="e.g. 2 eggs and toast with butter" autocomplete="off">
+      <div id="food-ai-status" style="display:none;font-size:13px;color:var(--text-light);text-align:center;margin-bottom:8px;"></div>
+      <button class="btn-add" id="food-ai-btn" onclick="aiParseFood()" style="width:100%;padding:14px;">Estimate Nutrition</button>
+      <div style="text-align:center;margin-top:12px;">
+        <a onclick="showManualEntry()" style="font-size:14px;color:var(--primary);font-weight:600;cursor:pointer;">Enter manually instead</a>
+      </div>
     </div>
-    <div id="food-ai-status" style="display:none;font-size:13px;color:var(--text-light);text-align:center;margin-bottom:8px;"></div>
 
     <!-- AI breakdown (shown after parse) -->
     <div id="food-ai-items" style="display:none;margin-bottom:10px;"></div>
 
-    <!-- Manual entry (hidden when AI items shown) -->
-    <div id="food-manual-fields">
+    <!-- Manual entry (hidden by default) -->
+    <div id="food-manual-fields" style="display:none;">
       <label>Name</label>
       <input type="text" id="food-name" placeholder="e.g. Chicken salad" autocomplete="off">
       <label>Calories</label>
@@ -1078,7 +1082,8 @@
       </div>
     </div>
 
-    <div class="modal-btns">
+    <!-- Buttons (hidden until AI result or manual mode) -->
+    <div class="modal-btns" id="food-modal-btns" style="display:none;">
       <button class="cancel" onclick="closeFoodModal()">Cancel</button>
       <button class="save" id="food-save-btn" onclick="saveFood()">Add</button>
     </div>
@@ -1638,13 +1643,23 @@ function openFoodModal() {
   document.getElementById('food-fat').value = '';
   document.getElementById('food-ai-input').value = '';
   document.getElementById('food-ai-status').style.display = 'none';
+  document.getElementById('food-ai-view').style.display = 'block';
   document.getElementById('food-ai-items').style.display = 'none';
-  document.getElementById('food-manual-fields').style.display = 'block';
-  document.getElementById('food-save-btn').textContent = 'Add';
-  document.getElementById('food-save-btn').setAttribute('onclick', 'saveFood()');
+  document.getElementById('food-manual-fields').style.display = 'none';
+  document.getElementById('food-modal-btns').style.display = 'none';
   aiParsedItems = [];
   document.getElementById('food-modal').classList.add('open');
   document.getElementById('food-ai-input').focus();
+}
+
+function showManualEntry() {
+  document.getElementById('food-ai-view').style.display = 'none';
+  document.getElementById('food-ai-items').style.display = 'none';
+  document.getElementById('food-manual-fields').style.display = 'block';
+  document.getElementById('food-modal-btns').style.display = 'flex';
+  document.getElementById('food-save-btn').textContent = 'Add';
+  document.getElementById('food-save-btn').setAttribute('onclick', 'saveFood()');
+  document.getElementById('food-name').focus();
 }
 
 async function aiParseFood() {
@@ -1686,7 +1701,9 @@ async function aiParseFood() {
 
 function renderAiItems() {
   const el = document.getElementById('food-ai-items');
+  document.getElementById('food-ai-view').style.display = 'none';
   document.getElementById('food-manual-fields').style.display = 'none';
+  document.getElementById('food-modal-btns').style.display = 'flex';
   document.getElementById('food-save-btn').textContent = 'Add All';
   document.getElementById('food-save-btn').setAttribute('onclick', 'saveAiItems()');
   el.style.display = 'block';
@@ -1737,9 +1754,8 @@ function removeAiItem(idx) {
   aiParsedItems.splice(idx, 1);
   if (aiParsedItems.length === 0) {
     document.getElementById('food-ai-items').style.display = 'none';
-    document.getElementById('food-manual-fields').style.display = 'block';
-    document.getElementById('food-save-btn').textContent = 'Add';
-    document.getElementById('food-save-btn').setAttribute('onclick', 'saveFood()');
+    document.getElementById('food-ai-view').style.display = 'block';
+    document.getElementById('food-modal-btns').style.display = 'none';
   } else {
     renderAiItems();
   }
