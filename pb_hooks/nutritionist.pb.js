@@ -68,8 +68,8 @@ The total calories/protein/carbs/fat for the meal MUST equal the sum of all ingr
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 1.5,
-          maxOutputTokens: 4096,
+          temperature: 1.0,
+          maxOutputTokens: 8192,
         },
       }),
     });
