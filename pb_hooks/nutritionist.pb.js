@@ -39,30 +39,15 @@ ${cuisines ? "Preferred cuisines: " + cuisines : ""}
 
 Each meal should use a reasonable portion of the remaining macros (not all of them, unless it's the only meal left).
 
-Respond ONLY with valid JSON in this exact format, no markdown, no code blocks:
-[
-  {
-    "name": "Meal name",
-    "type": "breakfast",
-    "calories": 450,
-    "protein": 35,
-    "carbs": 40,
-    "fat": 15,
-    "description": "Brief 1-line description",
-    "ingredients": [
-      { "item": "6oz chicken breast", "cal": 280, "p": 52, "c": 0, "f": 6 },
-      { "item": "1 cup brown rice", "cal": 215, "p": 5, "c": 45, "f": 2 }
-    ],
-    "instructions": ["Step 1", "Step 2", "Step 3"]
-  }
-]
+Keep each meal to 4-6 ingredients max and 3-5 instruction steps. Be concise.
 
-The total calories/protein/carbs/fat for the meal MUST equal the sum of all ingredients.`;
+Respond ONLY with valid JSON, no markdown, no code blocks:
+[{"name":"Meal name","type":"breakfast","calories":450,"protein":35,"carbs":40,"fat":15,"description":"Brief description","ingredients":[{"item":"6oz chicken breast","cal":280,"p":52,"c":0,"f":6}],"instructions":["Step 1","Step 2"]}]`;
 
   let res;
   try {
     res = $http.send({
-      url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey,
+      url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey,
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
