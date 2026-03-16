@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121218" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-title" content="Tracker">
 <title>Daily Tracker</title>
 <script src="https://cdn.jsdelivr.net/gh/pocketbase/js-sdk@0.21/dist/pocketbase.umd.js"></script>
@@ -24,6 +26,43 @@
     --macro-p: #e07b4c;
     --macro-c: #d4a843;
     --macro-f: #7b8fe0;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121218;
+      --card: #1c1c24;
+      --primary: #4ece8b;
+      --primary-light: #1a2e22;
+      --water: #5aa3e6;
+      --water-light: #1a2433;
+      --text: #e8e8ed;
+      --text-light: #7a7a8a;
+      --border: #2a2a35;
+      --danger: #f06060;
+      --macro-p: #f09060;
+      --macro-c: #e8c050;
+      --macro-f: #90a0f0;
+    }
+    body { color-scheme: dark; }
+    .auth-form input, .modal input, .modal select, .page input, .page select,
+    .settings-row input, .ai-item .ai-item-macros input {
+      background: var(--bg);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .auth-form input:focus, .modal input:focus, .modal select:focus,
+    .page input:focus, .page select:focus, .settings-row input:focus {
+      background: var(--card);
+    }
+    .summary-card, .entry-item, .macro-item, .meal-card, .ai-item {
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    .modal-overlay { background: rgba(0,0,0,0.6); }
+    .goal-banner.reached { background: #1a2e1a; color: #6ece6e; }
+    .pace-card.pace-selected, .pace-card.pace-recommended { background: var(--primary-light); }
+    .pref-chip.selected { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+    img, video { opacity: 0.9; }
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
