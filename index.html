@@ -794,7 +794,9 @@
     </div>
   </div>
 
-  <div id="goal-banner" style="display:none;"></div>
+  <div id="goal-banner-wrap" style="display:none;overflow:hidden;">
+    <div id="goal-banner" style="touch-action:pan-y;transition:transform 0.2s,opacity 0.2s;"></div>
+  </div>
 
   <!-- Water section -->
   <div class="section">
@@ -1793,22 +1795,28 @@ function renderWeightDisplay() {
 }
 
 // ---- Goal banner ----
+let bannerDismissed = false;
+
 function renderGoalBanner() {
+  const wrap = document.getElementById('goal-banner-wrap');
   const banner = document.getElementById('goal-banner');
-  if (!userSettings.goal_weight || currentDate !== todayStr()) {
-    banner.style.display = 'none';
+  if (bannerDismissed || !userSettings.goal_weight || currentDate !== todayStr()) {
+    wrap.style.display = 'none';
     return;
   }
 
   const goalWeight = userSettings.goal_weight;
   const latestWeight = weighInCache.length > 0 ? weighInCache[0].weight : userSettings.current_weight;
-  if (!latestWeight) { banner.style.display = 'none'; return; }
+  if (!latestWeight) { wrap.style.display = 'none'; return; }
 
   const remaining = latestWeight - goalWeight;
 
   // Check if goal reached
   if (Math.abs(remaining) <= 1) {
-    banner.style.display = 'block';
+    wrap.style.display = 'block';
+    banner.style.transform = '';
+    banner.style.opacity = '';
+    initBannerSwipe();
     banner.className = 'goal-banner reached';
     banner.innerHTML = `<div class="banner-title">You've reached your goal!</div>` +
       `<div class="banner-sub">Current: ${latestWeight} lbs. Goal: ${goalWeight} lbs. Amazing work!</div>`;
@@ -1854,6 +1862,46 @@ function renderGoalBanner() {
   banner.style.display = 'block';
   banner.className = 'goal-banner';
   banner.innerHTML = `<div class="banner-title">${absDiff} lbs ${direction}. Keep going!</div>${estimateHtml}`;
+}
+
+function initBannerSwipe() {
+  const wrap = document.getElementById('goal-banner-wrap');
+  const banner = document.getElementById('goal-banner');
+  let startX = 0, swiping = false;
+
+  function onStart(e) {
+    startX = (e.touches ? e.touches[0] : e).clientX;
+    swiping = true;
+    banner.style.transition = 'none';
+  }
+  function onMove(e) {
+    if (!swiping) return;
+    const dx = (e.touches ? e.touches[0] : e).clientX - startX;
+    banner.style.transform = `translateX(${dx}px)`;
+    banner.style.opacity = Math.max(0, 1 - Math.abs(dx) / 200);
+  }
+  function onEnd(e) {
+    if (!swiping) return;
+    swiping = false;
+    banner.style.transition = 'transform 0.2s,opacity 0.2s';
+    const dx = (e.changedTouches ? e.changedTouches[0] : e).clientX - startX;
+    if (Math.abs(dx) > 80) {
+      banner.style.transform = `translateX(${dx > 0 ? '100%' : '-100%'})`;
+      banner.style.opacity = '0';
+      bannerDismissed = true;
+      setTimeout(() => { wrap.style.display = 'none'; }, 200);
+    } else {
+      banner.style.transform = '';
+      banner.style.opacity = '';
+    }
+  }
+
+  banner.addEventListener('touchstart', onStart, { passive: true });
+  banner.addEventListener('touchmove', onMove, { passive: true });
+  banner.addEventListener('touchend', onEnd);
+  banner.addEventListener('mousedown', onStart);
+  document.addEventListener('mousemove', (e) => { if (swiping) onMove(e); });
+  document.addEventListener('mouseup', (e) => { if (swiping) onEnd(e); });
 }
 
 // ---- Date nav ----
