@@ -457,6 +457,39 @@
   .pace-card .pace-date { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 4px; }
   .pace-card.pace-recommended .pace-label::after { content: ' (Recommended)'; font-weight: 400; font-size: 12px; color: var(--primary); }
   .pace-card.pace-selected { border-color: var(--primary); background: var(--primary-light); }
+  /* AI food items */
+  .ai-item {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  .ai-item .ai-item-name { font-size: 14px; font-weight: 600; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+  .ai-item .ai-item-name .btn-del { background: none; border: none; color: var(--text-light); font-size: 18px; cursor: pointer; padding: 2px 6px; }
+  .ai-item .ai-item-macros { display: flex; gap: 6px; }
+  .ai-item .ai-item-macros input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 6px;
+    font-size: 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    text-align: center;
+    background: var(--card);
+    margin-bottom: 0;
+  }
+  .ai-item .ai-item-macros input:focus { border-color: var(--primary); }
+  .ai-item-total {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
   /* Preference chips */
   .pref-chips {
     display: flex;
@@ -1018,26 +1051,36 @@
 
 <!-- ======== FOOD MODAL ======== -->
 <div class="modal-overlay" id="food-modal">
-  <div class="modal">
+  <div class="modal" style="max-height:85dvh;overflow-y:auto;">
     <h3 id="food-modal-title">Add Food</h3>
-    <div id="preset-shortcuts" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;">
+    <div id="preset-shortcuts" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
+
+    <!-- AI input -->
+    <div style="display:flex;gap:8px;margin-bottom:6px;">
       <input type="text" id="food-ai-input" placeholder="e.g. 2 eggs and toast with butter" autocomplete="off" style="flex:1;">
       <button class="btn-add" id="food-ai-btn" onclick="aiParseFood()" style="white-space:nowrap;">AI Fill</button>
     </div>
-    <div id="food-ai-status" style="display:none;font-size:13px;color:var(--text-light);text-align:center;margin-bottom:10px;"></div>
-    <label>Name</label>
-    <input type="text" id="food-name" placeholder="e.g. Chicken salad" autocomplete="off">
-    <label>Calories</label>
-    <input type="number" id="food-cal" placeholder="e.g. 350" inputmode="numeric">
-    <div class="settings-row">
-      <div><label>Protein (g)</label><input type="number" id="food-protein" placeholder="0" inputmode="numeric"></div>
-      <div><label>Carbs (g)</label><input type="number" id="food-carbs" placeholder="0" inputmode="numeric"></div>
-      <div><label>Fat (g)</label><input type="number" id="food-fat" placeholder="0" inputmode="numeric"></div>
+    <div id="food-ai-status" style="display:none;font-size:13px;color:var(--text-light);text-align:center;margin-bottom:8px;"></div>
+
+    <!-- AI breakdown (shown after parse) -->
+    <div id="food-ai-items" style="display:none;margin-bottom:10px;"></div>
+
+    <!-- Manual entry (hidden when AI items shown) -->
+    <div id="food-manual-fields">
+      <label>Name</label>
+      <input type="text" id="food-name" placeholder="e.g. Chicken salad" autocomplete="off">
+      <label>Calories</label>
+      <input type="number" id="food-cal" placeholder="e.g. 350" inputmode="numeric">
+      <div class="settings-row">
+        <div><label>Protein (g)</label><input type="number" id="food-protein" placeholder="0" inputmode="numeric"></div>
+        <div><label>Carbs (g)</label><input type="number" id="food-carbs" placeholder="0" inputmode="numeric"></div>
+        <div><label>Fat (g)</label><input type="number" id="food-fat" placeholder="0" inputmode="numeric"></div>
+      </div>
     </div>
+
     <div class="modal-btns">
       <button class="cancel" onclick="closeFoodModal()">Cancel</button>
-      <button class="save" onclick="saveFood()">Add</button>
+      <button class="save" id="food-save-btn" onclick="saveFood()">Add</button>
     </div>
   </div>
 </div>
@@ -1585,6 +1628,8 @@ async function deleteWater(id) {
 }
 
 // ---- Food ----
+let aiParsedItems = [];
+
 function openFoodModal() {
   document.getElementById('food-name').value = '';
   document.getElementById('food-cal').value = '';
@@ -1593,6 +1638,11 @@ function openFoodModal() {
   document.getElementById('food-fat').value = '';
   document.getElementById('food-ai-input').value = '';
   document.getElementById('food-ai-status').style.display = 'none';
+  document.getElementById('food-ai-items').style.display = 'none';
+  document.getElementById('food-manual-fields').style.display = 'block';
+  document.getElementById('food-save-btn').textContent = 'Add';
+  document.getElementById('food-save-btn').setAttribute('onclick', 'saveFood()');
+  aiParsedItems = [];
   document.getElementById('food-modal').classList.add('open');
   document.getElementById('food-ai-input').focus();
 }
@@ -1604,7 +1654,7 @@ async function aiParseFood() {
   const status = document.getElementById('food-ai-status');
   btn.disabled = true;
   btn.textContent = '...';
-  status.textContent = 'Analyzing food...';
+  status.textContent = 'Breaking down your food...';
   status.style.display = 'block';
 
   try {
@@ -1617,15 +1667,14 @@ async function aiParseFood() {
       body: JSON.stringify({ text }),
     });
     const data = await res.json();
-    if (data.name) {
-      document.getElementById('food-name').value = data.name;
-      document.getElementById('food-cal').value = data.calories || '';
-      document.getElementById('food-protein').value = data.protein || '';
-      document.getElementById('food-carbs').value = data.carbs || '';
-      document.getElementById('food-fat').value = data.fat || '';
-      status.textContent = 'Filled! Review and tap Add.';
+    if (data.items && data.items.length > 0) {
+      aiParsedItems = data.items;
+      renderAiItems();
+      status.textContent = 'Review each item, edit if needed, then tap Add All.';
+    } else if (data.error) {
+      status.textContent = 'Error: ' + data.error;
     } else {
-      status.textContent = 'Could not parse: ' + (data.error || 'unknown error');
+      status.textContent = 'Could not parse. Try being more specific.';
     }
   } catch (e) {
     status.textContent = 'Failed to connect. Try again.';
@@ -1633,6 +1682,88 @@ async function aiParseFood() {
     btn.disabled = false;
     btn.textContent = 'AI Fill';
   }
+}
+
+function renderAiItems() {
+  const el = document.getElementById('food-ai-items');
+  document.getElementById('food-manual-fields').style.display = 'none';
+  document.getElementById('food-save-btn').textContent = 'Add All';
+  document.getElementById('food-save-btn').setAttribute('onclick', 'saveAiItems()');
+  el.style.display = 'block';
+
+  el.innerHTML = aiParsedItems.map((item, i) => `
+    <div class="ai-item" id="ai-item-${i}">
+      <div class="ai-item-name">
+        <span>${esc(item.name)}</span>
+        <button class="btn-del" onclick="removeAiItem(${i})">&times;</button>
+      </div>
+      <div class="ai-item-macros">
+        <input type="number" value="${item.calories}" onchange="updateAiItem(${i},'calories',this.value)" inputmode="numeric" title="Cal">
+        <input type="number" value="${item.protein}" onchange="updateAiItem(${i},'protein',this.value)" inputmode="numeric" title="Protein" style="color:var(--macro-p);">
+        <input type="number" value="${item.carbs}" onchange="updateAiItem(${i},'carbs',this.value)" inputmode="numeric" title="Carbs" style="color:var(--macro-c);">
+        <input type="number" value="${item.fat}" onchange="updateAiItem(${i},'fat',this.value)" inputmode="numeric" title="Fat" style="color:var(--macro-f);">
+      </div>
+      <div style="display:flex;gap:6px;font-size:10px;color:var(--text-light);margin-top:3px;padding:0 2px;">
+        <span style="flex:1;text-align:center;">Cal</span>
+        <span style="flex:1;text-align:center;">Prot</span>
+        <span style="flex:1;text-align:center;">Carb</span>
+        <span style="flex:1;text-align:center;">Fat</span>
+      </div>
+    </div>
+  `).join('') + renderAiTotal();
+}
+
+function renderAiTotal() {
+  const t = aiParsedItems.reduce((s, i) => ({
+    cal: s.cal + (parseInt(i.calories) || 0),
+    p: s.p + (parseInt(i.protein) || 0),
+    c: s.c + (parseInt(i.carbs) || 0),
+    f: s.f + (parseInt(i.fat) || 0),
+  }), { cal: 0, p: 0, c: 0, f: 0 });
+  return `<div class="ai-item-total">
+    <span>Total</span>
+    <span>${t.cal} cal &middot; P:${t.p}g &middot; C:${t.c}g &middot; F:${t.f}g</span>
+  </div>`;
+}
+
+function updateAiItem(idx, field, value) {
+  aiParsedItems[idx][field] = parseInt(value) || 0;
+  // Update total
+  const totalEl = document.querySelector('.ai-item-total');
+  if (totalEl) totalEl.outerHTML = renderAiTotal();
+}
+
+function removeAiItem(idx) {
+  aiParsedItems.splice(idx, 1);
+  if (aiParsedItems.length === 0) {
+    document.getElementById('food-ai-items').style.display = 'none';
+    document.getElementById('food-manual-fields').style.display = 'block';
+    document.getElementById('food-save-btn').textContent = 'Add';
+    document.getElementById('food-save-btn').setAttribute('onclick', 'saveFood()');
+  } else {
+    renderAiItems();
+  }
+}
+
+async function saveAiItems() {
+  if (aiParsedItems.length === 0) return;
+  try {
+    for (const item of aiParsedItems) {
+      await pb.collection('food_entries').create({
+        user: userId(),
+        name: item.name,
+        calories: parseInt(item.calories) || 0,
+        protein: parseInt(item.protein) || 0,
+        carbs: parseInt(item.carbs) || 0,
+        fat: parseInt(item.fat) || 0,
+        date: currentDate,
+        time: nowTime(),
+      });
+    }
+    closeFoodModal();
+    await loadDayData(currentDate);
+    render();
+  } catch (e) { console.error('Failed to save AI items', e); }
 }
 
 function closeFoodModal() {

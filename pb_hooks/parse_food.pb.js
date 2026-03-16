@@ -19,20 +19,23 @@ routerAdd("POST", "/api/parse-food", (c) => {
     return c.json(500, { error: "Gemini API key not configured" });
   }
 
-  const prompt = `Parse this food description into structured nutrition data. Estimate calories and macros as accurately as possible based on standard serving sizes.
+  const prompt = `Parse this food description into individual ingredients with nutrition data. Estimate calories and macros as accurately as possible based on standard serving sizes.
 
 Food: "${text}"
 
 Respond ONLY with valid JSON, no markdown, no code blocks:
 {
-  "name": "Clean, concise food name",
-  "calories": 350,
-  "protein": 25,
-  "carbs": 30,
-  "fat": 12
+  "items": [
+    { "name": "2 large eggs", "calories": 140, "protein": 12, "carbs": 1, "fat": 10 },
+    { "name": "1 slice wheat toast", "calories": 80, "protein": 3, "carbs": 14, "fat": 1 }
+  ]
 }
 
-If the description contains multiple items, combine them into one entry with totals. Use realistic portion sizes. Calories and macros should be numbers (integers).`;
+Rules:
+- Break down into individual ingredients/items
+- Include quantity and preparation in the name (e.g. "1 tbsp butter", "6oz grilled chicken breast")
+- Use realistic portion sizes
+- All numbers should be integers`;
 
   let res;
   try {
@@ -44,7 +47,7 @@ If the description contains multiple items, combine them into one entry with tot
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.3,
-          maxOutputTokens: 256,
+          maxOutputTokens: 1024,
         },
       }),
     });
