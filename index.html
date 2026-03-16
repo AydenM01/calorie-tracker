@@ -807,6 +807,10 @@
       <button onclick="addWater(16)">16 oz</button>
       <button onclick="addWater(20)">20 oz</button>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <input type="number" id="water-custom-oz" placeholder="Custom oz" inputmode="decimal" style="flex:1;border:2px solid var(--border);border-radius:12px;padding:10px 12px;font-size:15px;background:var(--bg);color:var(--text);outline:none;font-family:inherit;" onkeydown="if(event.key==='Enter')addCustomWater()">
+      <button class="btn-add" onclick="addCustomWater()" style="background:var(--water);padding:10px 18px;">Add</button>
+    </div>
     <ul class="entry-list" id="water-list"></ul>
   </div>
 
@@ -1848,6 +1852,14 @@ async function changeDate(delta) {
 }
 
 // ---- Water ----
+function addCustomWater() {
+  const input = document.getElementById('water-custom-oz');
+  const oz = parseFloat(input.value);
+  if (!oz || oz <= 0) return;
+  addWater(oz);
+  input.value = '';
+}
+
 async function addWater(oz) {
   try {
     await pb.collection('water_entries').create({
