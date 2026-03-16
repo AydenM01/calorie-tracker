@@ -852,10 +852,9 @@
     <button class="btn-add" style="width:100%;" onclick="switchTab('calc')">Open Goal Calculator</button>
   </div>
   <div class="summary-card">
-    <h3 style="font-size:15px;margin-bottom:10px;">Quick-add Presets</h3>
-    <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;">Save foods you eat often for one-tap logging.</p>
+    <h3 style="font-size:15px;margin-bottom:10px;">Quick-add Favorites</h3>
+    <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;">Tap the star on any food entry to save it here for one-tap logging.</p>
     <div id="preset-list" style="margin-bottom:12px;"></div>
-    <button class="btn-add" style="width:100%;" onclick="openPresetModal()">+ Add Preset</button>
   </div>
 </div>
 
@@ -1145,9 +1144,12 @@
       <div><label>Carbs (g)</label><input type="number" id="edit-food-carbs" inputmode="decimal"></div>
       <div><label>Fat (g)</label><input type="number" id="edit-food-fat" inputmode="decimal"></div>
     </div>
-    <div class="modal-btns" style="margin-top:12px;">
-      <button class="cancel" onclick="closeEditFoodModal()">Cancel</button>
-      <button class="save" onclick="updateFood()">Save</button>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button onclick="toggleFavFromEdit()" id="edit-fav-btn" style="background:none;border:2px solid var(--border);border-radius:14px;padding:14px;font-size:18px;cursor:pointer;min-width:52px;">&#9734;</button>
+      <div class="modal-btns" style="flex:1;margin-top:0;">
+        <button class="cancel" onclick="closeEditFoodModal()">Cancel</button>
+        <button class="save" onclick="updateFood()">Save</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1156,7 +1158,7 @@
 <div class="modal-overlay" id="food-modal">
   <div class="modal" style="max-height:85dvh;overflow-y:auto;">
     <h3 id="food-modal-title">Add Food</h3>
-    <div id="preset-shortcuts" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
+    <div id="preset-shortcuts" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;" data-label="favorites"></div>
 
     <!-- AI input (shown first) -->
     <div id="food-ai-view">
@@ -1567,9 +1569,14 @@ function render() {
   } else {
     foodList.innerHTML = foods.map(f => {
       const macros = [f.protein && `P:${Math.round(f.protein)}`, f.carbs && `C:${Math.round(f.carbs)}`, f.fat && `F:${Math.round(f.fat)}`].filter(Boolean).join(' ');
+      const isFav = isFoodFavorited(f.name);
       return `<li class="entry-item" style="cursor:pointer;" onclick="openEditFoodModal('${f.id}')">
         <div class="info"><div class="name">${esc(f.name)}</div><div class="time">${f.time || ''}${macros ? ' &middot; ' + macros + 'g' : ''}</div></div>
-        <div class="right"><span class="amount">${f.calories} cal</span><button class="btn-del" onclick="event.stopPropagation();deleteFood('${f.id}')">&times;</button></div>
+        <div class="right">
+          <span class="amount">${f.calories} cal</span>
+          <button class="btn-fav" onclick="event.stopPropagation();toggleFoodFavorite('${esc(f.name).replace(/'/g,"\\'")}',${f.calories},${f.protein||0},${f.carbs||0},${f.fat||0})" style="background:none;border:none;font-size:18px;cursor:pointer;padding:4px;color:${isFav ? '#d4a843' : 'var(--text-light)'};">${isFav ? '&#9733;' : '&#9734;'}</button>
+          <button class="btn-del" onclick="event.stopPropagation();deleteFood('${f.id}')">&times;</button>
+        </div>
       </li>`;
     }).join('');
   }
@@ -1993,8 +2000,28 @@ function openEditFoodModal(id) {
   document.getElementById('edit-food-protein').value = food.protein || '';
   document.getElementById('edit-food-carbs').value = food.carbs || '';
   document.getElementById('edit-food-fat').value = food.fat || '';
+  const isFav = isFoodFavorited(food.name);
+  const favBtn = document.getElementById('edit-fav-btn');
+  favBtn.innerHTML = isFav ? '&#9733;' : '&#9734;';
+  favBtn.style.color = isFav ? '#d4a843' : 'var(--text-light)';
+  favBtn.style.borderColor = isFav ? '#d4a843' : 'var(--border)';
   document.getElementById('edit-food-modal').classList.add('open');
   document.getElementById('edit-food-name').focus();
+}
+
+async function toggleFavFromEdit() {
+  const name = document.getElementById('edit-food-name').value.trim();
+  const cal = parseInt(document.getElementById('edit-food-cal').value) || 0;
+  const protein = parseFloat(document.getElementById('edit-food-protein').value) || 0;
+  const carbs = parseFloat(document.getElementById('edit-food-carbs').value) || 0;
+  const fat = parseFloat(document.getElementById('edit-food-fat').value) || 0;
+  if (!name) return;
+  await toggleFoodFavorite(name, cal, protein, carbs, fat);
+  const isFav = isFoodFavorited(name);
+  const favBtn = document.getElementById('edit-fav-btn');
+  favBtn.innerHTML = isFav ? '&#9733;' : '&#9734;';
+  favBtn.style.color = isFav ? '#d4a843' : 'var(--text-light)';
+  favBtn.style.borderColor = isFav ? '#d4a843' : 'var(--border)';
 }
 
 function closeEditFoodModal() {
@@ -2035,11 +2062,26 @@ async function addFromPreset(name, cal, protein, carbs, fat) {
   } catch (e) { console.error('Failed to add preset food', e); }
 }
 
-// ---- Presets ----
+// ---- Favorites / Presets ----
+function isFoodFavorited(name) {
+  return userSettings.presets.some(p => p.name === name);
+}
+
+async function toggleFoodFavorite(name, cal, protein, carbs, fat) {
+  const idx = userSettings.presets.findIndex(p => p.name === name);
+  if (idx >= 0) {
+    userSettings.presets.splice(idx, 1);
+  } else {
+    userSettings.presets.push({ name, cal, protein: protein || 0, carbs: carbs || 0, fat: fat || 0 });
+  }
+  await saveSettingsToServer();
+  render();
+}
+
 function renderPresets() {
   const el = document.getElementById('preset-list');
   if (userSettings.presets.length === 0) {
-    el.innerHTML = '<div class="empty">No presets yet</div>';
+    el.innerHTML = '<div class="empty">No favorites yet — tap the star on any food entry</div>';
     return;
   }
   el.innerHTML = userSettings.presets.map((p, i) => {
