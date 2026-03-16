@@ -62,6 +62,7 @@
     .goal-banner.reached { background: #1a2e1a; color: #6ece6e; }
     .pace-card.pace-selected, .pace-card.pace-recommended { background: var(--primary-light); }
     .pref-chip.selected { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+    .btn-scan { background: #3a3a4a; }
     img, video { opacity: 0.9; }
   }
 
@@ -172,6 +173,7 @@
   }
   .btn-add:active { transform: scale(0.97); }
   .btn-add:disabled { opacity: 0.5; cursor: default; }
+  .btn-scan { background: #2c2c3a; }
 
   /* Water quick buttons */
   .water-quick {
@@ -753,7 +755,7 @@
     <div class="section-header">
       <h2>Food</h2>
       <div style="display:flex;gap:6px;">
-        <button class="btn-add" onclick="openScanner()" style="background:var(--text);">Scan</button>
+        <button class="btn-add btn-scan" onclick="openScanner()">Scan</button>
         <button class="btn-add" onclick="openFoodModal()">+ Add</button>
       </div>
     </div>
