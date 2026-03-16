@@ -45,10 +45,15 @@ Respond ONLY with valid JSON in this exact format, no markdown, no code blocks:
     "carbs": 40,
     "fat": 15,
     "description": "Brief 1-line description",
-    "ingredients": ["ingredient 1 with amount", "ingredient 2 with amount"],
+    "ingredients": [
+      { "item": "6oz chicken breast", "cal": 280, "p": 52, "c": 0, "f": 6 },
+      { "item": "1 cup brown rice", "cal": 215, "p": 5, "c": 45, "f": 2 }
+    ],
     "instructions": ["Step 1", "Step 2", "Step 3"]
   }
-]`;
+]
+
+The total calories/protein/carbs/fat for the meal MUST equal the sum of all ingredients.`;
 
   let res;
   try {

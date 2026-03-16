@@ -560,7 +560,8 @@
   .meal-detail.open { display: block; }
   .meal-detail h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
   .meal-detail ul { padding-left: 18px; margin-bottom: 12px; }
-  .meal-detail li { font-size: 14px; line-height: 1.6; color: var(--text); }
+  .meal-detail li { font-size: 14px; line-height: 1.6; color: var(--text); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2px; }
+  .ing-macros { font-size: 11px; color: var(--text-light); font-weight: 400; }
   .meal-detail ol { padding-left: 18px; margin-bottom: 14px; }
   .meal-detail ol li { font-size: 14px; line-height: 1.6; margin-bottom: 4px; }
   .meal-add-btn {
@@ -2365,7 +2366,12 @@ function renderMealCards(filterType) {
       </div>
       <div class="meal-detail" id="md-${filterType}-${i}">
         <h4>Ingredients</h4>
-        <ul>${(m.ingredients || []).map(ing => `<li>${esc(ing)}</li>`).join('')}</ul>
+        <ul>${(m.ingredients || []).map(ing => {
+          if (typeof ing === 'object' && ing.item) {
+            return `<li><span>${esc(ing.item)}</span><span class="ing-macros">${ing.cal} cal &middot; P:${ing.p}g C:${ing.c}g F:${ing.f}g</span></li>`;
+          }
+          return `<li>${esc(ing)}</li>`;
+        }).join('')}</ul>
         <h4>Instructions</h4>
         <ol>${(m.instructions || []).map(step => `<li>${esc(step)}</li>`).join('')}</ol>
         <button class="meal-add-btn" onclick="event.stopPropagation();logMealDirect(this)" ${dataAttr}>Add to Today's Log</button>
