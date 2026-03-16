@@ -760,7 +760,7 @@
       <div id="cal-detail" style="font-size:11px;color:var(--text-light);margin-top:2px;"></div>
       <div class="progress-wrap"><div class="progress-bar"><div class="fill" id="cal-bar"></div></div></div>
     </div>
-    <div class="summary-card water">
+    <div class="summary-card water" style="cursor:pointer;" onclick="openWaterModal()">
       <div class="label">Water</div>
       <div class="value" id="water-total">0 oz</div>
       <div class="goal">of <span id="water-goal-display">64</span> oz goal</div>
@@ -807,9 +807,6 @@
       <button onclick="addWater(16)">16 oz</button>
       <button onclick="addWater(20)">20 oz</button>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <input type="number" id="water-custom-oz" placeholder="Custom oz" inputmode="decimal" style="flex:1;border:2px solid var(--border);border-radius:12px;padding:10px 12px;font-size:15px;background:var(--bg);color:var(--text);outline:none;font-family:inherit;" onkeydown="if(event.key==='Enter')addCustomWater()">
-      <button class="btn-add" onclick="addCustomWater()" style="background:var(--water);padding:10px 18px;">Add</button>
     </div>
     <ul class="entry-list" id="water-list"></ul>
   </div>
@@ -1296,6 +1293,25 @@
         <button class="cancel" onclick="scannerBackToScan()">Scan Another</button>
         <button class="save" onclick="addScannedFood()">Add</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======== WATER MODAL ======== -->
+<div class="modal-overlay" id="water-modal">
+  <div class="modal">
+    <h3>Log Water</h3>
+    <div class="water-quick" style="margin-bottom:14px;">
+      <button onclick="addWater(8);closeWaterModal()">8 oz</button>
+      <button onclick="addWater(12);closeWaterModal()">12 oz</button>
+      <button onclick="addWater(16);closeWaterModal()">16 oz</button>
+      <button onclick="addWater(20);closeWaterModal()">20 oz</button>
+    </div>
+    <label>Custom amount</label>
+    <input type="number" id="water-custom-oz" placeholder="e.g. 13.5" inputmode="decimal">
+    <div class="modal-btns">
+      <button class="cancel" onclick="closeWaterModal()">Cancel</button>
+      <button class="save" onclick="addCustomWater()" style="background:var(--water);">Add</button>
     </div>
   </div>
 </div>
@@ -1852,12 +1868,22 @@ async function changeDate(delta) {
 }
 
 // ---- Water ----
+function openWaterModal() {
+  document.getElementById('water-custom-oz').value = '';
+  document.getElementById('water-modal').classList.add('open');
+  document.getElementById('water-custom-oz').focus();
+}
+
+function closeWaterModal() {
+  document.getElementById('water-modal').classList.remove('open');
+}
+
 function addCustomWater() {
   const input = document.getElementById('water-custom-oz');
   const oz = parseFloat(input.value);
   if (!oz || oz <= 0) return;
   addWater(oz);
-  input.value = '';
+  closeWaterModal();
 }
 
 async function addWater(oz) {
@@ -2755,6 +2781,8 @@ document.getElementById('food-modal').addEventListener('click', e => { if (e.tar
 document.getElementById('edit-food-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditFoodModal(); });
 document.getElementById('edit-food-cal').addEventListener('keydown', e => { if (e.key === 'Enter') updateFood(); });
 document.getElementById('preset-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closePresetModal(); });
+document.getElementById('water-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeWaterModal(); });
+document.getElementById('water-custom-oz').addEventListener('keydown', e => { if (e.key === 'Enter') addCustomWater(); });
 document.getElementById('exercise-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeExerciseModal(); });
 document.getElementById('exercise-ai-input').addEventListener('keydown', e => { if (e.key === 'Enter') aiParseExercise(); });
 document.getElementById('weighin-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeWeighInModal(); });
