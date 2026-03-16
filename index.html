@@ -786,6 +786,12 @@
       <span class="macro-label">Fat</span>
       <div class="macro-prog"><div class="macro-prog-fill" id="macro-fat-bar" style="background:#7b8fe0;"></div></div>
     </div>
+    <div class="macro-item">
+      <span class="macro-val" id="macro-sugar" style="color:#e05090;">0</span>
+      <span class="macro-goal-text" id="macro-sugar-goal"></span>
+      <span class="macro-label">Sugar</span>
+      <div class="macro-prog"><div class="macro-prog-fill" id="macro-sugar-bar" style="background:#e05090;"></div></div>
+    </div>
   </div>
 
   <div id="goal-banner" style="display:none;"></div>
@@ -859,6 +865,7 @@
       <div><label>Protein Goal (g)</label><input type="number" id="input-protein-goal" inputmode="decimal" placeholder="0"></div>
       <div><label>Carbs Goal (g)</label><input type="number" id="input-carbs-goal" inputmode="decimal" placeholder="0"></div>
       <div><label>Fat Goal (g)</label><input type="number" id="input-fat-goal" inputmode="decimal" placeholder="0"></div>
+      <div><label>Sugar Goal (g)</label><input type="number" id="input-sugar-goal" inputmode="decimal" placeholder="0"></div>
     </div>
     <div style="margin-bottom:14px;">
       <label>Day Starts At</label>
@@ -1184,6 +1191,7 @@
       <div><label>Protein (g)</label><input type="number" id="edit-food-protein" inputmode="decimal"></div>
       <div><label>Carbs (g)</label><input type="number" id="edit-food-carbs" inputmode="decimal"></div>
       <div><label>Fat (g)</label><input type="number" id="edit-food-fat" inputmode="decimal"></div>
+      <div><label>Sugar (g)</label><input type="number" id="edit-food-sugar" inputmode="decimal"></div>
     </div>
     <div style="display:flex;gap:10px;margin-top:12px;">
       <button onclick="toggleFavFromEdit()" id="edit-fav-btn" style="background:none;border:2px solid var(--border);border-radius:14px;padding:14px;font-size:18px;cursor:pointer;min-width:52px;">&#9734;</button>
@@ -1225,6 +1233,7 @@
         <div><label>Protein (g)</label><input type="number" id="food-protein" placeholder="0" inputmode="decimal"></div>
         <div><label>Carbs (g)</label><input type="number" id="food-carbs" placeholder="0" inputmode="decimal"></div>
         <div><label>Fat (g)</label><input type="number" id="food-fat" placeholder="0" inputmode="decimal"></div>
+        <div><label>Sugar (g)</label><input type="number" id="food-sugar" placeholder="0" inputmode="decimal"></div>
       </div>
     </div>
 
@@ -1343,7 +1352,7 @@ const PB_URL = window.location.origin;
 const pb = new PocketBase(PB_URL);
 
 // ---- State ----
-let userSettings = { cal_goal: 2000, water_goal: 64, presets: [], goal_date: null, goal_weight: null, day_start_hour: 0, protein_goal: 0, carbs_goal: 0, fat_goal: 0 };
+let userSettings = { cal_goal: 2000, water_goal: 64, presets: [], goal_date: null, goal_weight: null, day_start_hour: 0, protein_goal: 0, carbs_goal: 0, fat_goal: 0, sugar_goal: 0 };
 let currentDate = todayStr();
 let settingsRecordId = null;
 let foodCache = {};   // date -> array of records
@@ -1483,6 +1492,7 @@ async function loadSettings() {
         userSettings.protein_goal = p.protein_goal || 0;
         userSettings.carbs_goal = p.carbs_goal || 0;
         userSettings.fat_goal = p.fat_goal || 0;
+        userSettings.sugar_goal = p.sugar_goal || 0;
         userSettings.current_weight = p.current_weight || null;
         userSettings.profile_sex = p.profile_sex || null;
         userSettings.profile_age = p.profile_age || null;
@@ -1513,6 +1523,7 @@ async function saveSettingsToServer() {
       protein_goal: userSettings.protein_goal || 0,
       carbs_goal: userSettings.carbs_goal || 0,
       fat_goal: userSettings.fat_goal || 0,
+      sugar_goal: userSettings.sugar_goal || 0,
       current_weight: userSettings.current_weight || null,
       profile_sex: userSettings.profile_sex || null,
       profile_age: userSettings.profile_age || null,
@@ -1579,6 +1590,7 @@ function render() {
   const proteinTotal = foods.reduce((s, f) => s + (f.protein || 0), 0);
   const carbsTotal = foods.reduce((s, f) => s + (f.carbs || 0), 0);
   const fatTotal = foods.reduce((s, f) => s + (f.fat || 0), 0);
+  const sugarTotal = foods.reduce((s, f) => s + (f.sugar || 0), 0);
   const waterTotal = waters.reduce((s, w) => s + (w.oz || 0), 0);
 
   document.getElementById('cal-total').textContent = calNet;
@@ -1603,15 +1615,20 @@ function render() {
   document.getElementById('macro-carbs-bar').style.width = cg ? Math.min(100, (carbsTotal / cg) * 100) + '%' : '0%';
   document.getElementById('macro-fat-bar').style.width = fg ? Math.min(100, (fatTotal / fg) * 100) + '%' : '0%';
 
+  document.getElementById('macro-sugar').textContent = Math.round(sugarTotal) + 'g';
+  const sg = userSettings.sugar_goal;
+  document.getElementById('macro-sugar-goal').textContent = sg ? `/ ${sg}g` : '';
+  document.getElementById('macro-sugar-bar').style.width = sg ? Math.min(100, (sugarTotal / sg) * 100) + '%' : '0%';
+
   // Food list
   const foodList = document.getElementById('food-list');
   if (foods.length === 0) {
     foodList.innerHTML = '<div class="empty">No food logged yet</div>';
   } else {
     foodList.innerHTML = foods.map(f => {
-      const macros = [f.protein && `P:${Math.round(f.protein)}`, f.carbs && `C:${Math.round(f.carbs)}`, f.fat && `F:${Math.round(f.fat)}`].filter(Boolean).join(' ');
+      const macros = [f.protein && `P:${Math.round(f.protein)}`, f.carbs && `C:${Math.round(f.carbs)}`, f.fat && `F:${Math.round(f.fat)}`, f.sugar && `S:${Math.round(f.sugar)}`].filter(Boolean).join(' ');
       const isFav = isFoodFavorited(f.name);
-      return `<div class="swipe-container" data-id="${f.id}" data-name="${esc(f.name)}" data-cal="${f.calories}" data-protein="${f.protein||0}" data-carbs="${f.carbs||0}" data-fat="${f.fat||0}" data-fav="${isFav}">
+      return `<div class="swipe-container" data-id="${f.id}" data-name="${esc(f.name)}" data-cal="${f.calories}" data-protein="${f.protein||0}" data-carbs="${f.carbs||0}" data-fat="${f.fat||0}" data-sugar="${f.sugar||0}" data-fav="${isFav}">
         <div class="swipe-bg left"><span>Delete</span></div>
         <div class="swipe-bg right ${isFav ? 'unfav' : ''}"><span>${isFav ? 'Unfavorite' : 'Favorite'}</span></div>
         <div class="entry-item swipe-item" style="cursor:pointer;" onclick="openEditFoodModal('${f.id}')">
@@ -1659,6 +1676,7 @@ function render() {
   document.getElementById('input-protein-goal').value = userSettings.protein_goal || '';
   document.getElementById('input-carbs-goal').value = userSettings.carbs_goal || '';
   document.getElementById('input-fat-goal').value = userSettings.fat_goal || '';
+  document.getElementById('input-sugar-goal').value = userSettings.sugar_goal || '';
   document.getElementById('input-day-start').value = userSettings.day_start_hour || 0;
 
   renderPresets();
@@ -1860,6 +1878,7 @@ function openFoodModal() {
   document.getElementById('food-protein').value = '';
   document.getElementById('food-carbs').value = '';
   document.getElementById('food-fat').value = '';
+  document.getElementById('food-sugar').value = '';
   document.getElementById('food-ai-input').value = '';
   document.getElementById('food-ai-status').style.display = 'none';
   document.getElementById('food-ai-view').style.display = 'block';
@@ -1938,12 +1957,14 @@ function renderAiItems() {
         <input type="number" value="${item.protein}" onchange="updateAiItem(${i},'protein',this.value)" inputmode="decimal" title="Protein" style="color:var(--macro-p);">
         <input type="number" value="${item.carbs}" onchange="updateAiItem(${i},'carbs',this.value)" inputmode="decimal" title="Carbs" style="color:var(--macro-c);">
         <input type="number" value="${item.fat}" onchange="updateAiItem(${i},'fat',this.value)" inputmode="decimal" title="Fat" style="color:var(--macro-f);">
+        <input type="number" value="${item.sugar || 0}" onchange="updateAiItem(${i},'sugar',this.value)" inputmode="decimal" title="Sugar" style="color:#e05090;">
       </div>
       <div style="display:flex;gap:6px;font-size:10px;color:var(--text-light);margin-top:3px;padding:0 2px;">
         <span style="flex:1;text-align:center;">Cal</span>
         <span style="flex:1;text-align:center;">Prot</span>
         <span style="flex:1;text-align:center;">Carb</span>
         <span style="flex:1;text-align:center;">Fat</span>
+        <span style="flex:1;text-align:center;">Sugar</span>
       </div>
     </div>
   `).join('') + renderAiTotal();
@@ -1955,10 +1976,11 @@ function renderAiTotal() {
     p: s.p + (parseInt(i.protein) || 0),
     c: s.c + (parseInt(i.carbs) || 0),
     f: s.f + (parseInt(i.fat) || 0),
-  }), { cal: 0, p: 0, c: 0, f: 0 });
+    su: s.su + (parseInt(i.sugar) || 0),
+  }), { cal: 0, p: 0, c: 0, f: 0, su: 0 });
   return `<div class="ai-item-total">
     <span>Total</span>
-    <span>${t.cal} cal &middot; P:${t.p}g &middot; C:${t.c}g &middot; F:${t.f}g</span>
+    <span>${t.cal} cal &middot; P:${t.p}g &middot; C:${t.c}g &middot; F:${t.f}g &middot; S:${t.su}g</span>
   </div>`;
 }
 
@@ -1991,6 +2013,7 @@ async function saveAiItems() {
         protein: parseInt(item.protein) || 0,
         carbs: parseInt(item.carbs) || 0,
         fat: parseInt(item.fat) || 0,
+        sugar: parseInt(item.sugar) || 0,
         date: currentDate,
         time: nowTime(),
       });
@@ -2012,12 +2035,13 @@ async function saveFood() {
   const protein = parseFloat(document.getElementById('food-protein').value) || 0;
   const carbs = parseFloat(document.getElementById('food-carbs').value) || 0;
   const fat = parseFloat(document.getElementById('food-fat').value) || 0;
+  const sugar = parseFloat(document.getElementById('food-sugar').value) || 0;
   try {
     await pb.collection('food_entries').create({
       user: userId(),
       name,
       calories: cal,
-      protein, carbs, fat,
+      protein, carbs, fat, sugar,
       date: currentDate,
       time: nowTime(),
     });
@@ -2045,6 +2069,7 @@ function openEditFoodModal(id) {
   document.getElementById('edit-food-protein').value = food.protein || '';
   document.getElementById('edit-food-carbs').value = food.carbs || '';
   document.getElementById('edit-food-fat').value = food.fat || '';
+  document.getElementById('edit-food-sugar').value = food.sugar || '';
   const isFav = isFoodFavorited(food.name);
   const favBtn = document.getElementById('edit-fav-btn');
   favBtn.innerHTML = isFav ? '&#9733;' : '&#9734;';
@@ -2060,8 +2085,9 @@ async function toggleFavFromEdit() {
   const protein = parseFloat(document.getElementById('edit-food-protein').value) || 0;
   const carbs = parseFloat(document.getElementById('edit-food-carbs').value) || 0;
   const fat = parseFloat(document.getElementById('edit-food-fat').value) || 0;
+  const sugar = parseFloat(document.getElementById('edit-food-sugar').value) || 0;
   if (!name) return;
-  await toggleFoodFavorite(name, cal, protein, carbs, fat);
+  await toggleFoodFavorite(name, cal, protein, carbs, fat, sugar);
   const isFav = isFoodFavorited(name);
   const favBtn = document.getElementById('edit-fav-btn');
   favBtn.innerHTML = isFav ? '&#9733;' : '&#9734;';
@@ -2081,15 +2107,16 @@ async function updateFood() {
   const protein = parseFloat(document.getElementById('edit-food-protein').value) || 0;
   const carbs = parseFloat(document.getElementById('edit-food-carbs').value) || 0;
   const fat = parseFloat(document.getElementById('edit-food-fat').value) || 0;
+  const sugar = parseFloat(document.getElementById('edit-food-sugar').value) || 0;
   try {
-    await pb.collection('food_entries').update(id, { name, calories: cal, protein, carbs, fat });
+    await pb.collection('food_entries').update(id, { name, calories: cal, protein, carbs, fat, sugar });
     closeEditFoodModal();
     await loadDayData(currentDate);
     render();
   } catch (e) { console.error('Failed to update food', e); }
 }
 
-async function addFromPreset(name, cal, protein, carbs, fat) {
+async function addFromPreset(name, cal, protein, carbs, fat, sugar) {
   try {
     await pb.collection('food_entries').create({
       user: userId(),
@@ -2098,6 +2125,7 @@ async function addFromPreset(name, cal, protein, carbs, fat) {
       protein: protein || 0,
       carbs: carbs || 0,
       fat: fat || 0,
+      sugar: sugar || 0,
       date: currentDate,
       time: nowTime(),
     });
@@ -2112,12 +2140,12 @@ function isFoodFavorited(name) {
   return userSettings.presets.some(p => p.name === name);
 }
 
-async function toggleFoodFavorite(name, cal, protein, carbs, fat) {
+async function toggleFoodFavorite(name, cal, protein, carbs, fat, sugar) {
   const idx = userSettings.presets.findIndex(p => p.name === name);
   if (idx >= 0) {
     userSettings.presets.splice(idx, 1);
   } else {
-    userSettings.presets.push({ name, cal, protein: protein || 0, carbs: carbs || 0, fat: fat || 0 });
+    userSettings.presets.push({ name, cal, protein: protein || 0, carbs: carbs || 0, fat: fat || 0, sugar: sugar || 0 });
   }
   await saveSettingsToServer();
   render();
@@ -2130,7 +2158,7 @@ function renderPresets() {
     return;
   }
   el.innerHTML = userSettings.presets.map((p, i) => {
-    const macros = [p.protein && `P:${p.protein}`, p.carbs && `C:${p.carbs}`, p.fat && `F:${p.fat}`].filter(Boolean).join(' ');
+    const macros = [p.protein && `P:${p.protein}`, p.carbs && `C:${p.carbs}`, p.fat && `F:${p.fat}`, p.sugar && `S:${p.sugar}`].filter(Boolean).join(' ');
     return `<div class="entry-item">
       <div class="info"><div class="name">${esc(p.name)}</div><div class="time">${p.cal} cal${macros ? ' &middot; ' + macros + 'g' : ''}</div></div>
       <div class="right"><button class="btn-del" onclick="deletePreset(${i})">&times;</button></div>
@@ -2146,7 +2174,7 @@ function renderPresetShortcuts() {
     const btn = document.createElement('button');
     btn.style.cssText = 'background:var(--primary-light);color:var(--primary);border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;';
     btn.textContent = `${p.name} (${p.cal})`;
-    btn.addEventListener('click', () => addFromPreset(p.name, p.cal, p.protein||0, p.carbs||0, p.fat||0));
+    btn.addEventListener('click', () => addFromPreset(p.name, p.cal, p.protein||0, p.carbs||0, p.fat||0, p.sugar||0));
     el.appendChild(btn);
   });
 }
@@ -2189,11 +2217,13 @@ async function saveSettings() {
   const pg = parseInt(document.getElementById('input-protein-goal').value);
   const cgm = parseInt(document.getElementById('input-carbs-goal').value);
   const fgm = parseInt(document.getElementById('input-fat-goal').value);
+  const sgm = parseInt(document.getElementById('input-sugar-goal').value);
   if (!isNaN(cg) && cg > 0) userSettings.cal_goal = cg;
   if (!isNaN(wg) && wg > 0) userSettings.water_goal = wg;
   userSettings.protein_goal = isNaN(pg) ? 0 : pg;
   userSettings.carbs_goal = isNaN(cgm) ? 0 : cgm;
   userSettings.fat_goal = isNaN(fgm) ? 0 : fgm;
+  userSettings.sugar_goal = isNaN(sgm) ? 0 : sgm;
   userSettings.day_start_hour = isNaN(ds) ? 0 : ds;
   // Recalculate today based on new start hour
   currentDate = todayStr();
@@ -2470,8 +2500,8 @@ function initSwipeHandlers() {
         // Swipe right — toggle favorite
         item.style.transform = `translateX(100%)`;
         setTimeout(() => {
-          const { name, cal, protein, carbs, fat } = container.dataset;
-          toggleFoodFavorite(name, parseInt(cal), parseFloat(protein), parseFloat(carbs), parseFloat(fat));
+          const { name, cal, protein, carbs, fat, sugar } = container.dataset;
+          toggleFoodFavorite(name, parseInt(cal), parseFloat(protein), parseFloat(carbs), parseFloat(fat), parseFloat(sugar));
         }, 200);
       } else {
         // Snap back
@@ -2603,6 +2633,7 @@ async function onBarcodeScanned(barcode) {
       const proteinPer = Math.round((nutriments['proteins' + suffix] || nutriments['proteins_serving'] || nutriments['proteins_100g'] || 0) * 10) / 10;
       const carbsPer = Math.round((nutriments['carbohydrates' + suffix] || nutriments['carbohydrates_serving'] || nutriments['carbohydrates_100g'] || 0) * 10) / 10;
       const fatPer = Math.round((nutriments['fat' + suffix] || nutriments['fat_serving'] || nutriments['fat_100g'] || 0) * 10) / 10;
+      const sugarPer = Math.round((nutriments['sugars' + suffix] || nutriments['sugars_serving'] || nutriments['sugars_100g'] || 0) * 10) / 10;
 
       scannedProduct = {
         name: brand ? `${name} (${brand})` : name,
@@ -2610,6 +2641,7 @@ async function onBarcodeScanned(barcode) {
         proteinPer,
         carbsPer,
         fatPer,
+        sugarPer,
         servingDesc,
       };
 
@@ -2620,6 +2652,7 @@ async function onBarcodeScanned(barcode) {
           <span style="color:#e07b4c;font-weight:600;">P: ${proteinPer}g</span>
           <span style="color:#d4a843;font-weight:600;">C: ${carbsPer}g</span>
           <span style="color:#7b8fe0;font-weight:600;">F: ${fatPer}g</span>
+          <span style="color:#e05090;font-weight:600;">S: ${sugarPer}g</span>
         </div>
       `;
       document.getElementById('scanner-servings').value = '1';
@@ -2652,7 +2685,8 @@ function updateScannerTotals(s) {
   const p = Math.round(scannedProduct.proteinPer * s * 10) / 10;
   const c = Math.round(scannedProduct.carbsPer * s * 10) / 10;
   const f = Math.round(scannedProduct.fatPer * s * 10) / 10;
-  document.getElementById('scanner-cal-total').innerHTML = `<span style="font-size:15px;">${cal} cal</span> <span style="font-size:12px;color:var(--text-light);">P:${p}g C:${c}g F:${f}g</span>`;
+  const su = Math.round((scannedProduct.sugarPer || 0) * s * 10) / 10;
+  document.getElementById('scanner-cal-total').innerHTML = `<span style="font-size:15px;">${cal} cal</span> <span style="font-size:12px;color:var(--text-light);">P:${p}g C:${c}g F:${f}g S:${su}g</span>`;
 }
 
 async function addScannedFood() {
@@ -2662,6 +2696,7 @@ async function addScannedFood() {
   const protein = Math.round(scannedProduct.proteinPer * servings * 10) / 10;
   const carbs = Math.round(scannedProduct.carbsPer * servings * 10) / 10;
   const fat = Math.round(scannedProduct.fatPer * servings * 10) / 10;
+  const sugar = Math.round((scannedProduct.sugarPer || 0) * servings * 10) / 10;
   const name = servings !== 1
     ? `${scannedProduct.name} (x${servings})`
     : scannedProduct.name;
@@ -2671,7 +2706,7 @@ async function addScannedFood() {
       user: userId(),
       name,
       calories: totalCal,
-      protein, carbs, fat,
+      protein, carbs, fat, sugar,
       date: currentDate,
       time: nowTime(),
     });

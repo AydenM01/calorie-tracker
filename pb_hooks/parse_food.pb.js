@@ -26,8 +26,8 @@ Food: "${text}"
 Respond ONLY with valid JSON, no markdown, no code blocks:
 {
   "items": [
-    { "name": "2 large eggs", "calories": 140, "protein": 12, "carbs": 1, "fat": 10 },
-    { "name": "1 slice wheat toast", "calories": 80, "protein": 3, "carbs": 14, "fat": 1 }
+    { "name": "2 large eggs", "calories": 140, "protein": 12, "carbs": 1, "fat": 10, "sugar": 0 },
+    { "name": "1 slice wheat toast", "calories": 80, "protein": 3, "carbs": 14, "fat": 1, "sugar": 1 }
   ]
 }
 
