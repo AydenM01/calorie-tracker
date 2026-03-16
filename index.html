@@ -807,17 +807,17 @@
     <div class="settings-row">
       <div>
         <label>Calorie Goal</label>
-        <input type="number" id="input-cal-goal" inputmode="numeric">
+        <input type="number" id="input-cal-goal" inputmode="decimal">
       </div>
       <div>
         <label>Water Goal (oz)</label>
-        <input type="number" id="input-water-goal" inputmode="numeric">
+        <input type="number" id="input-water-goal" inputmode="decimal">
       </div>
     </div>
     <div class="settings-row" style="margin-bottom:14px;">
-      <div><label>Protein Goal (g)</label><input type="number" id="input-protein-goal" inputmode="numeric" placeholder="0"></div>
-      <div><label>Carbs Goal (g)</label><input type="number" id="input-carbs-goal" inputmode="numeric" placeholder="0"></div>
-      <div><label>Fat Goal (g)</label><input type="number" id="input-fat-goal" inputmode="numeric" placeholder="0"></div>
+      <div><label>Protein Goal (g)</label><input type="number" id="input-protein-goal" inputmode="decimal" placeholder="0"></div>
+      <div><label>Carbs Goal (g)</label><input type="number" id="input-carbs-goal" inputmode="decimal" placeholder="0"></div>
+      <div><label>Fat Goal (g)</label><input type="number" id="input-fat-goal" inputmode="decimal" placeholder="0"></div>
     </div>
     <div style="margin-bottom:14px;">
       <label>Day Starts At</label>
@@ -892,7 +892,7 @@
       <a class="calc-back" onclick="calcShowStep(1)">&larr; Back</a>
       <h3 class="calc-q">How old are you?</h3>
       <label>Age</label>
-      <input type="number" id="calc-age" placeholder="e.g. 28" inputmode="numeric">
+      <input type="number" id="calc-age" placeholder="e.g. 28" inputmode="decimal">
       <button class="btn-add" style="width:100%;" onclick="calcNext(3)">Next</button>
     </div>
   </div>
@@ -905,11 +905,11 @@
       <div class="settings-row">
         <div>
           <label>Feet</label>
-          <input type="number" id="calc-feet" placeholder="5" inputmode="numeric">
+          <input type="number" id="calc-feet" placeholder="5" inputmode="decimal">
         </div>
         <div>
           <label>Inches</label>
-          <input type="number" id="calc-inches" placeholder="10" inputmode="numeric">
+          <input type="number" id="calc-inches" placeholder="10" inputmode="decimal">
         </div>
       </div>
       <button class="btn-add" style="width:100%;" onclick="calcNext(4)">Next</button>
@@ -1156,11 +1156,11 @@
       <label>Name</label>
       <input type="text" id="food-name" placeholder="e.g. Chicken salad" autocomplete="off">
       <label>Calories</label>
-      <input type="number" id="food-cal" placeholder="e.g. 350" inputmode="numeric">
+      <input type="number" id="food-cal" placeholder="e.g. 350" inputmode="decimal">
       <div class="settings-row">
-        <div><label>Protein (g)</label><input type="number" id="food-protein" placeholder="0" inputmode="numeric"></div>
-        <div><label>Carbs (g)</label><input type="number" id="food-carbs" placeholder="0" inputmode="numeric"></div>
-        <div><label>Fat (g)</label><input type="number" id="food-fat" placeholder="0" inputmode="numeric"></div>
+        <div><label>Protein (g)</label><input type="number" id="food-protein" placeholder="0" inputmode="decimal"></div>
+        <div><label>Carbs (g)</label><input type="number" id="food-carbs" placeholder="0" inputmode="decimal"></div>
+        <div><label>Fat (g)</label><input type="number" id="food-fat" placeholder="0" inputmode="decimal"></div>
       </div>
     </div>
 
@@ -1179,11 +1179,11 @@
     <label>Name</label>
     <input type="text" id="preset-name" placeholder="e.g. Morning coffee" autocomplete="off">
     <label>Calories</label>
-    <input type="number" id="preset-cal" placeholder="e.g. 120" inputmode="numeric">
+    <input type="number" id="preset-cal" placeholder="e.g. 120" inputmode="decimal">
     <div class="settings-row">
-      <div><label>Protein (g)</label><input type="number" id="preset-protein" placeholder="0" inputmode="numeric"></div>
-      <div><label>Carbs (g)</label><input type="number" id="preset-carbs" placeholder="0" inputmode="numeric"></div>
-      <div><label>Fat (g)</label><input type="number" id="preset-fat" placeholder="0" inputmode="numeric"></div>
+      <div><label>Protein (g)</label><input type="number" id="preset-protein" placeholder="0" inputmode="decimal"></div>
+      <div><label>Carbs (g)</label><input type="number" id="preset-carbs" placeholder="0" inputmode="decimal"></div>
+      <div><label>Fat (g)</label><input type="number" id="preset-fat" placeholder="0" inputmode="decimal"></div>
     </div>
     <div class="modal-btns">
       <button class="cancel" onclick="closePresetModal()">Cancel</button>
@@ -1205,7 +1205,7 @@
       <div id="scanner-status" style="text-align:center;font-size:14px;color:var(--text-light);padding:8px 0;"></div>
       <div style="text-align:center;margin-bottom:8px;"><span style="font-size:12px;color:var(--text-light);">or enter barcode manually:</span></div>
       <div style="display:flex;gap:8px;">
-        <input type="text" id="scanner-barcode-input" placeholder="e.g. 049000042566" inputmode="numeric" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:16px;outline:none;font-family:inherit;">
+        <input type="text" id="scanner-barcode-input" placeholder="e.g. 049000042566" inputmode="decimal" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:16px;outline:none;font-family:inherit;">
         <button class="btn-add" onclick="manualBarcodeLookup()">Look Up</button>
       </div>
     </div>
@@ -1247,8 +1247,8 @@
       <label>Exercise</label>
       <input type="text" id="exercise-name" placeholder="e.g. Running" autocomplete="off">
       <div class="settings-row">
-        <div><label>Calories Burned</label><input type="number" id="exercise-cal" placeholder="e.g. 300" inputmode="numeric"></div>
-        <div><label>Duration (min)</label><input type="number" id="exercise-dur" placeholder="e.g. 30" inputmode="numeric"></div>
+        <div><label>Calories Burned</label><input type="number" id="exercise-cal" placeholder="e.g. 300" inputmode="decimal"></div>
+        <div><label>Duration (min)</label><input type="number" id="exercise-dur" placeholder="e.g. 30" inputmode="decimal"></div>
       </div>
     </div>
 
@@ -1861,10 +1861,10 @@ function renderAiItems() {
         <button class="btn-del" onclick="removeAiItem(${i})">&times;</button>
       </div>
       <div class="ai-item-macros">
-        <input type="number" value="${item.calories}" onchange="updateAiItem(${i},'calories',this.value)" inputmode="numeric" title="Cal">
-        <input type="number" value="${item.protein}" onchange="updateAiItem(${i},'protein',this.value)" inputmode="numeric" title="Protein" style="color:var(--macro-p);">
-        <input type="number" value="${item.carbs}" onchange="updateAiItem(${i},'carbs',this.value)" inputmode="numeric" title="Carbs" style="color:var(--macro-c);">
-        <input type="number" value="${item.fat}" onchange="updateAiItem(${i},'fat',this.value)" inputmode="numeric" title="Fat" style="color:var(--macro-f);">
+        <input type="number" value="${item.calories}" onchange="updateAiItem(${i},'calories',this.value)" inputmode="decimal" title="Cal">
+        <input type="number" value="${item.protein}" onchange="updateAiItem(${i},'protein',this.value)" inputmode="decimal" title="Protein" style="color:var(--macro-p);">
+        <input type="number" value="${item.carbs}" onchange="updateAiItem(${i},'carbs',this.value)" inputmode="decimal" title="Carbs" style="color:var(--macro-c);">
+        <input type="number" value="${item.fat}" onchange="updateAiItem(${i},'fat',this.value)" inputmode="decimal" title="Fat" style="color:var(--macro-f);">
       </div>
       <div style="display:flex;gap:6px;font-size:10px;color:var(--text-light);margin-top:3px;padding:0 2px;">
         <span style="flex:1;text-align:center;">Cal</span>
@@ -2233,8 +2233,8 @@ function renderAiExercises() {
         <button class="btn-del" onclick="aiParsedExercises.splice(${i},1);renderAiExercises()">&times;</button>
       </div>
       <div class="ai-item-macros">
-        <input type="number" value="${item.calories_burned}" onchange="aiParsedExercises[${i}].calories_burned=parseInt(this.value)||0;updateExTotal()" inputmode="numeric" title="Cal burned" style="color:#e07b4c;">
-        <input type="number" value="${item.duration_min}" onchange="aiParsedExercises[${i}].duration_min=parseInt(this.value)||0" inputmode="numeric" title="Minutes">
+        <input type="number" value="${item.calories_burned}" onchange="aiParsedExercises[${i}].calories_burned=parseInt(this.value)||0;updateExTotal()" inputmode="decimal" title="Cal burned" style="color:#e07b4c;">
+        <input type="number" value="${item.duration_min}" onchange="aiParsedExercises[${i}].duration_min=parseInt(this.value)||0" inputmode="decimal" title="Minutes">
       </div>
       <div style="display:flex;gap:6px;font-size:10px;color:var(--text-light);margin-top:3px;padding:0 2px;">
         <span style="flex:1;text-align:center;">Cal burned</span>
