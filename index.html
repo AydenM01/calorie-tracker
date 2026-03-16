@@ -2481,6 +2481,13 @@ async function saveNutritionPrefs() {
 function initNutritionTab() {
   const hasPrefs = (userSettings.pref_diet && userSettings.pref_diet.length) ||
                    (userSettings.pref_proteins && userSettings.pref_proteins.length);
+  // Restore from sessionStorage if empty
+  if (cachedMeals.length === 0) {
+    try {
+      const saved = sessionStorage.getItem('cachedMeals');
+      if (saved) cachedMeals = JSON.parse(saved);
+    } catch(e) {}
+  }
   if (!hasPrefs) {
     showNutritionOnboarding();
   } else if (cachedMeals.length > 0) {
@@ -2552,6 +2559,7 @@ async function generateMeals() {
     clearInterval(loadingInterval);
     if (data.meals) {
       cachedMeals = data.meals;
+      try { sessionStorage.setItem('cachedMeals', JSON.stringify(cachedMeals)); } catch(e) {}
       showMealCards();
     } else {
       document.getElementById('nutrition-loading').style.display = 'none';
