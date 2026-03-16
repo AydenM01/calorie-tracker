@@ -1021,6 +1021,11 @@
   <div class="modal">
     <h3 id="food-modal-title">Add Food</h3>
     <div id="preset-shortcuts" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <input type="text" id="food-ai-input" placeholder="e.g. 2 eggs and toast with butter" autocomplete="off" style="flex:1;">
+      <button class="btn-add" id="food-ai-btn" onclick="aiParseFood()" style="white-space:nowrap;">AI Fill</button>
+    </div>
+    <div id="food-ai-status" style="display:none;font-size:13px;color:var(--text-light);text-align:center;margin-bottom:10px;"></div>
     <label>Name</label>
     <input type="text" id="food-name" placeholder="e.g. Chicken salad" autocomplete="off">
     <label>Calories</label>
@@ -1586,8 +1591,48 @@ function openFoodModal() {
   document.getElementById('food-protein').value = '';
   document.getElementById('food-carbs').value = '';
   document.getElementById('food-fat').value = '';
+  document.getElementById('food-ai-input').value = '';
+  document.getElementById('food-ai-status').style.display = 'none';
   document.getElementById('food-modal').classList.add('open');
-  document.getElementById('food-name').focus();
+  document.getElementById('food-ai-input').focus();
+}
+
+async function aiParseFood() {
+  const text = document.getElementById('food-ai-input').value.trim();
+  if (!text) return;
+  const btn = document.getElementById('food-ai-btn');
+  const status = document.getElementById('food-ai-status');
+  btn.disabled = true;
+  btn.textContent = '...';
+  status.textContent = 'Analyzing food...';
+  status.style.display = 'block';
+
+  try {
+    const res = await fetch('/api/parse-food', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': pb.authStore.token,
+      },
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json();
+    if (data.name) {
+      document.getElementById('food-name').value = data.name;
+      document.getElementById('food-cal').value = data.calories || '';
+      document.getElementById('food-protein').value = data.protein || '';
+      document.getElementById('food-carbs').value = data.carbs || '';
+      document.getElementById('food-fat').value = data.fat || '';
+      status.textContent = 'Filled! Review and tap Add.';
+    } else {
+      status.textContent = 'Could not parse: ' + (data.error || 'unknown error');
+    }
+  } catch (e) {
+    status.textContent = 'Failed to connect. Try again.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'AI Fill';
+  }
 }
 
 function closeFoodModal() {
@@ -1985,6 +2030,7 @@ function manualBarcodeLookup() {
 }
 
 // ---- Enter key support in modals ----
+document.getElementById('food-ai-input').addEventListener('keydown', e => { if (e.key === 'Enter') aiParseFood(); });
 document.getElementById('food-cal').addEventListener('keydown', e => { if (e.key === 'Enter') saveFood(); });
 document.getElementById('preset-cal').addEventListener('keydown', e => { if (e.key === 'Enter') savePreset(); });
 document.getElementById('auth-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doAuth(); });
