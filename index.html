@@ -792,6 +792,11 @@
     </div>
     <button class="btn-add" style="width:100%;" onclick="saveSettings()">Save Goals</button>
   </div>
+  <div class="summary-card" style="margin-bottom:16px;">
+    <h3 style="font-size:15px;margin-bottom:6px;">Goal Calculator</h3>
+    <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;">Calculate recommended calories, macros, and water based on your body stats and goals.</p>
+    <button class="btn-add" style="width:100%;" onclick="switchTab('calc')">Open Goal Calculator</button>
+  </div>
   <div class="summary-card">
     <h3 style="font-size:15px;margin-bottom:10px;">Quick-add Presets</h3>
     <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;">Save foods you eat often for one-tap logging.</p>
@@ -812,6 +817,7 @@
 <div id="page-calc" class="page">
   <div class="header">
     <h1>Goal Calculator</h1>
+    <button class="btn-add" onclick="switchTab('settings')" style="background:var(--border);color:var(--text);">Back</button>
   </div>
 
   <!-- Step 1: Sex -->
@@ -1062,9 +1068,6 @@
   </button>
   <button class="tab-btn" onclick="switchTab('nutrition')" id="tab-nutrition">
     <span class="tab-icon">&#9733;</span>Meals
-  </button>
-  <button class="tab-btn" onclick="switchTab('calc')" id="tab-calc">
-    <span class="tab-icon">&#9878;</span>Goals
   </button>
   <button class="tab-btn" onclick="switchTab('history')" id="tab-history">
     <span class="tab-icon">&#9776;</span>History
